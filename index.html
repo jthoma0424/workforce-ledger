@@ -984,7 +984,7 @@
                 <div id="fsg-filter-bar"></div>
                 <div class="table-scroll">
                   <table class="data-table" id="fsg-table">
-                    <thead><tr><th>Location</th><th>Company</th><th>Week ending</th><th class="num-col">Sales</th><th class="num-col">Wages</th><th class="num-col">Payroll taxes</th><th class="num-col">Contract labor</th><th class="num-col">Workers comp (+10%)</th><th class="num-col">4ward commission</th><th class="num-col">Gross profit</th><th class="num-col">GP%</th><th class="num-col">FSG commission</th><th class="num-col">Owed to S4L</th><th class="actions-col admin-only" hidden>Actions</th></tr></thead>
+                    <thead><tr><th>Location</th><th>Company</th><th>Week ending</th><th class="num-col">Sales</th><th class="num-col">Wages</th><th class="num-col">Payroll taxes</th><th class="num-col">Contract labor</th><th class="num-col">Workers comp</th><th class="num-col">4ward commission</th><th class="num-col">Gross profit</th><th class="num-col">GP%</th><th class="num-col">FSG commission</th><th class="num-col">Owed to S4L</th><th class="actions-col admin-only" hidden>Actions</th></tr></thead>
                     <tbody></tbody>
                   </table>
                 </div>
@@ -1090,7 +1090,7 @@
                 <div class="table-scroll">
                   <table class="data-table" id="upl-fsg-table">
                     <thead><tr>
-                      <th>Location</th><th class="num-col">Sales</th><th class="num-col">Wages</th><th class="num-col">Payroll taxes</th><th class="num-col">Contract labor</th><th class="num-col">Workers comp (+10%)</th><th class="num-col">4ward commission</th><th class="num-col">Gross profit</th>
+                      <th>Location</th><th class="num-col">Sales</th><th class="num-col">Wages</th><th class="num-col">Payroll taxes</th><th class="num-col">Contract labor</th><th class="num-col">Workers comp</th><th class="num-col">4ward commission</th><th class="num-col">Gross profit</th>
                       <th class="num-col">GP%</th><th class="num-col">FSG commission</th><th class="num-col">Owed to S4L</th>
                     </tr></thead>
                     <tbody></tbody>
@@ -2446,7 +2446,7 @@
     if(typeof XLSX === "undefined"){ statusEl.textContent = "Excel library didn't load; refresh and try again."; return; }
     var r2 = function(n){ return Math.round((Number(n) || 0) * 100) / 100; };
     var opt = function(v){ return (v === null || v === undefined) ? null : r2(v); };
-    var header = ["Location", "Company", "Week ending", "Sales", "Wages", "Payroll taxes", "Contract labor", "Workers comp (+10%)", "4ward commission", "Gross profit", "GP %", "FSG commission", "Owed to S4L"];
+    var header = ["Location", "Company", "Week ending", "Sales", "Wages", "Payroll taxes", "Contract labor", "Workers comp", "4ward commission", "Gross profit", "GP %", "FSG commission", "Owed to S4L"];
     var aoa = [header];
     rows.forEach(function(f){
       var sales = (f.sales === null || f.sales === undefined) ? null : r2(f.sales);
@@ -2498,7 +2498,7 @@
     {key:'wages', label:'Wages', type:'number', step:'0.01'},
     {key:'payroll_taxes', label:'Payroll taxes', type:'number', step:'0.01'},
     {key:'contract_labor', label:'Contract labor', type:'number', step:'0.01'},
-    {key:'workers_comp', label:'Workers comp (+10%)', type:'number', step:'0.01'},
+    {key:'workers_comp', label:'Workers comp', type:'number', step:'0.01'},
     {key:'four_ward', label:'4ward commission', type:'number', step:'0.01'},
     {key:'notes', label:'Notes', type:'textarea'}
   ];
