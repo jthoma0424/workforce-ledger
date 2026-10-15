@@ -975,7 +975,11 @@
                     <div class="panel-title">FSG commission</div>
                     <div class="panel-sub" id="fsg-range"></div>
                   </div>
-                  <button type="button" class="btn-sm admin-only" id="fsg-add-btn" hidden>+ Add row</button>
+                  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                    <span class="panel-sub" id="fsg-export-status" style="margin:0;"></span>
+                    <button type="button" class="btn-sm" id="fsg-export-btn">Export to Excel</button>
+                    <button type="button" class="btn-sm admin-only" id="fsg-add-btn" hidden>+ Add row</button>
+                  </div>
                 </div>
                 <div id="fsg-filter-bar"></div>
                 <div class="table-scroll">
@@ -1462,6 +1466,22 @@
     return String(s === null || s === undefined ? "" : s)
       .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   }
+  // Markup % shown to the precision it was entered at (form allows 3 decimals).
+  function fmtMarkup(v){
+    var n = Number(v);
+    if(v === null || v === undefined || v === "" || !isFinite(n)) return "\u2014";
+    var r = Math.round(n*1000)/1000;
+    return (Math.round(r*10) === r*10 ? r.toFixed(1) : String(r)) + "%";
+  }
+  // WC rates are small numbers (e.g. 0.00112); never round them to 2 places.
+  function fmtRate(v){
+    var n = Number(v);
+    if(v === null || v === undefined || v === "" || !isFinite(n)) return "\u2014";
+    var r = Math.round(n*100000)/100000;
+    var t = String(r);
+    var dec = (t.split(".")[1] || "").length;
+    return dec < 2 ? r.toFixed(2) : t;
+  }
   function genId(prefix){
     return prefix + "-" + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
   }
@@ -1622,8 +1642,9 @@
   // ---------- formatting ----------
   function fmtUSD(n){
     if(n === null || n === undefined || isNaN(n)) return "—";
-    var sign = n < 0 ? "-" : "";
-    return sign + "$" + Math.round(Math.abs(n)).toLocaleString("en-US");
+    var abs2 = Math.round(Math.abs(n) * 100) / 100;
+    var sign = (n < 0 && abs2 > 0) ? "-" : "";
+    return sign + "$" + abs2.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
   function fmtUSDCompact(n){
     if(n === null || n === undefined || isNaN(n)) return "—";
@@ -1677,6 +1698,10 @@
     var labelA = keys.labelA || "Revenue", labelB = keys.labelB || "COGS";
     var ariaLabel = keys.ariaLabel || ("Weekly " + labelA.toLowerCase() + " versus " + labelB.toLowerCase());
 
+    if(!points || !points.length){
+      container.innerHTML = '<div class="empty-cell" style="padding:40px 0; text-align:center;">No weekly data yet.</div>';
+      return;
+    }
     var W = 620, H = 230, padL = 54, padR = 14, padT = 12, padB = 26;
     var innerW = W - padL - padR, innerH = H - padT - padB;
 
@@ -1922,8 +1947,8 @@
   // ---------- generic weekly grid table (P&L / cash / headcount trailing weeks) ----------
   function fmtUSDSigned(n){
     if(n === null || n === undefined || isNaN(n)) return "—";
-    var neg = n < 0, abs = Math.round(Math.abs(n));
-    return (neg ? "-$" : "+$") + abs.toLocaleString("en-US");
+    var abs = Math.round(Math.abs(n) * 100) / 100, neg = n < 0 && abs > 0;
+    return (neg ? "-$" : "+$") + abs.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
   function renderWeekTable(elId, cols, rowLabel, rows, opts){
     opts = opts || {};
@@ -2410,6 +2435,56 @@
     {key:'gross_profit', label:'Gross profit', type:'number', step:'0.01'},
     {key:'notes', label:'Notes', type:'textarea'}
   ];
+  var fsgExportRows = []; // rows currently shown in the FSG commission table (respects the week filter + search)
+  function exportFsgToExcel(){
+    var statusEl = document.getElementById("fsg-export-status");
+    var rows = fsgExportRows.slice().sort(function(a,b){
+      return String(b.check_date || "").localeCompare(String(a.check_date || "")) ||
+             String(a.staffing_location || "").localeCompare(String(b.staffing_location || ""));
+    });
+    if(!rows.length){ statusEl.textContent = "Nothing to export for this view."; return; }
+    if(typeof XLSX === "undefined"){ statusEl.textContent = "Excel library didn't load; refresh and try again."; return; }
+    var r2 = function(n){ return Math.round((Number(n) || 0) * 100) / 100; };
+    var header = ["Location", "Company", "Week ending", "Sales", "Gross profit", "GP %", "FSG commission", "Owed to S4L"];
+    var aoa = [header];
+    rows.forEach(function(f){
+      var sales = (f.sales === null || f.sales === undefined) ? null : r2(f.sales);
+      var gp = (f.gross_profit === null || f.gross_profit === undefined) ? null : r2(f.gross_profit);
+      aoa.push([
+        f.staffing_location || "", f.company || "", f.check_date ? fmtDateMDY(f.check_date) : "",
+        sales, gp, (sales && gp !== null) ? gp / sales : null,
+        (f.fsg_commission === null || f.fsg_commission === undefined) ? null : r2(f.fsg_commission),
+        (f.owed_to_s4l === null || f.owed_to_s4l === undefined) ? null : r2(f.owed_to_s4l)
+      ]);
+    });
+    var ws = XLSX.utils.aoa_to_sheet(aoa);
+    var last = aoa.length; // header + data rows -> last data row number = aoa.length
+    var totalRow = ["Total", "", "", null, null, null, null, null];
+    XLSX.utils.sheet_add_aoa(ws, [totalRow], { origin: "A" + (last + 1) });
+    ["D", "E", "G", "H"].forEach(function(col){
+      var sum = 0;
+      for(var i = 1; i < aoa.length; i++){
+        var idx = { D: 3, E: 4, G: 6, H: 7 }[col];
+        sum += Number(aoa[i][idx]) || 0;
+      }
+      ws[col + (last + 1)] = { t: "n", f: "SUM(" + col + "2:" + col + last + ")", v: r2(sum) };
+    });
+    for(var rr = 2; rr <= last + 1; rr++){
+      ["D", "E", "G", "H"].forEach(function(col){ if(ws[col + rr]) ws[col + rr].z = "#,##0.00"; });
+      if(ws["F" + rr]) ws["F" + rr].z = "0.0%";
+    }
+    ws["!cols"] = [{ wch: 34 }, { wch: 32 }, { wch: 13 }, { wch: 14 }, { wch: 14 }, { wch: 9 }, { wch: 16 }, { wch: 14 }];
+    ws["!ref"] = "A1:H" + (last + 1);
+    var weeks = {}; rows.forEach(function(f){ weeks[f.check_date] = true; });
+    var weekKeys = Object.keys(weeks);
+    var fname = "FSG-commission-" + (weekKeys.length === 1 ? weekKeys[0] : "all-weeks") + ".xlsx";
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "FSG commission");
+    XLSX.writeFile(wb, fname);
+    statusEl.textContent = "Exported " + rows.length + " row(s) to " + fname;
+  }
+  document.getElementById("fsg-export-btn").addEventListener("click", exportFsgToExcel);
+
   var FSG_FIELDS = [
     {key:'staffing_location', label:'Location', type:'text', required:true},
     {key:'company', label:'Company', type:'text'},
@@ -2474,7 +2549,7 @@
       kpiGrid.innerHTML = "";
       kpiGrid.appendChild(kpiTile("Active customers", activeCount + " / " + liveCustomers.length));
       kpiGrid.appendChild(kpiTile("Open balance", fmtUSD(totalOpenBalance)));
-      kpiGrid.appendChild(kpiTile("Avg. regular markup", avgMarkup != null ? avgMarkup.toFixed(1) + "%" : "—"));
+      kpiGrid.appendChild(kpiTile("Avg. regular markup", avgMarkup != null ? fmtMarkup(avgMarkup) : "—"));
 
       var balCustomers = liveCustomers.filter(function(c){ return (Number(c.open_balance)||0) > 0; })
         .slice().sort(function(a,b){ return (Number(b.open_balance)||0) - (Number(a.open_balance)||0); });
@@ -2491,15 +2566,15 @@
           var tr = document.createElement("tr");
           tr.innerHTML =
             '<td class="strong"><a href="#customer/'+encodeURIComponent(c.id)+'" class="cust-link">'+escHtml(c.name)+'</a></td>'+
-            '<td>'+(c.parent_company || "—")+'</td>'+
-            '<td>'+(c.industry || "—")+'</td>'+
+            '<td>'+escHtml(c.parent_company || "—")+'</td>'+
+            '<td>'+escHtml(c.industry || "—")+'</td>'+
             '<td>'+badgeFor(c.status)+'</td>'+
-            '<td>'+(c.office_code || "—")+'</td>'+
-            '<td>'+(c.wc_class_code || "—")+'</td>'+
-            '<td>'+(c.invoice_terms || "—")+'</td>'+
-            '<td class="num-col num">'+(c.regular_markup_pct != null ? Number(c.regular_markup_pct).toFixed(1) + "%" : "—")+'</td>'+
-            '<td class="num-col num">'+(c.ot_markup_pct != null ? Number(c.ot_markup_pct).toFixed(1) + "%" : "—")+'</td>'+
-            '<td class="num-col num">'+(c.pass_through_markup_pct != null ? Number(c.pass_through_markup_pct).toFixed(1) + "%" : "—")+'</td>'+
+            '<td>'+escHtml(c.office_code || "—")+'</td>'+
+            '<td>'+escHtml(c.wc_class_code || "—")+'</td>'+
+            '<td>'+escHtml(c.invoice_terms || "—")+'</td>'+
+            '<td class="num-col num">'+fmtMarkup(c.regular_markup_pct)+'</td>'+
+            '<td class="num-col num">'+fmtMarkup(c.ot_markup_pct)+'</td>'+
+            '<td class="num-col num">'+fmtMarkup(c.pass_through_markup_pct)+'</td>'+
             '<td class="num-col num">'+fmtUSD(c.open_balance)+'</td>';
           appendRowActions(tr, { table:"customers", record:c, label:c.name, fields:CUSTOMER_FIELDS, editTitle:"Edit customer", editLabel:"Open", refreshFn:refreshCustomers, onEdit:function(rec){ openCustomerDetail(rec.id); } });
           custBody.appendChild(tr);
@@ -2562,14 +2637,14 @@
           var custName = (inv.customers && inv.customers.name) || inv.customer_id;
           var tr = document.createElement("tr");
           tr.innerHTML =
-            '<td class="strong">'+inv.invoice_number+'</td>'+
-            '<td>'+custName+'</td>'+
-            '<td>'+(inv.issued_as || "—")+'</td>'+
+            '<td class="strong">'+escHtml(inv.invoice_number)+'</td>'+
+            '<td>'+escHtml(custName)+'</td>'+
+            '<td>'+escHtml(inv.issued_as || "—")+'</td>'+
             '<td>'+(inv.invoice_date ? fmtDate(inv.invoice_date) : "—")+'</td>'+
             '<td>'+(inv.period_ending ? fmtDate(inv.period_ending) : "—")+'</td>'+
-            '<td class="num-col num">'+(inv.regular_markup_pct != null ? Number(inv.regular_markup_pct).toFixed(1) + "%" : "—")+'</td>'+
-            '<td class="num-col num">'+(inv.ot_markup_pct != null ? Number(inv.ot_markup_pct).toFixed(1) + "%" : "—")+'</td>'+
-            '<td class="num-col num">'+(inv.pass_through_markup_pct != null ? Number(inv.pass_through_markup_pct).toFixed(1) + "%" : "—")+'</td>'+
+            '<td class="num-col num">'+fmtMarkup(inv.regular_markup_pct)+'</td>'+
+            '<td class="num-col num">'+fmtMarkup(inv.ot_markup_pct)+'</td>'+
+            '<td class="num-col num">'+fmtMarkup(inv.pass_through_markup_pct)+'</td>'+
             '<td class="num-col num">'+fmtUSD(inv.invoice_amount)+'</td>';
           appendRowActions(tr, { table:"invoices", record:inv, label:inv.invoice_number, fields:INVOICE_FIELDS, editTitle:"Edit invoice", refreshFn:refreshInvoices });
           invBody.appendChild(tr);
@@ -2655,7 +2730,7 @@
         var raw = c[f.key];
         var display;
         if(f.kind === "badge") display = badgeFor(raw);
-        else if(f.kind === "pct") display = (raw != null) ? Number(raw).toFixed(1) + "%" : "—";
+        else if(f.kind === "pct") display = fmtMarkup(raw);
         else if(f.kind === "usd") display = fmtUSD(raw);
         else display = raw ? escHtml(raw) : "—";
         return '<div class="detail-field' + (f.kind === "full" ? " full" : "") + '"><div class="dl">' + escHtml(f.label) + '</div><div class="dv">' + display + '</div></div>';
@@ -2703,9 +2778,9 @@
           '<td>'+(inv.issued_as || "—")+'</td>'+
           '<td>'+(inv.invoice_date ? fmtDate(inv.invoice_date) : "—")+'</td>'+
           '<td>'+(inv.period_ending ? fmtDate(inv.period_ending) : "—")+'</td>'+
-          '<td class="num-col num">'+(inv.regular_markup_pct != null ? Number(inv.regular_markup_pct).toFixed(1) + "%" : "—")+'</td>'+
-          '<td class="num-col num">'+(inv.ot_markup_pct != null ? Number(inv.ot_markup_pct).toFixed(1) + "%" : "—")+'</td>'+
-          '<td class="num-col num">'+(inv.pass_through_markup_pct != null ? Number(inv.pass_through_markup_pct).toFixed(1) + "%" : "—")+'</td>'+
+          '<td class="num-col num">'+fmtMarkup(inv.regular_markup_pct)+'</td>'+
+          '<td class="num-col num">'+fmtMarkup(inv.ot_markup_pct)+'</td>'+
+          '<td class="num-col num">'+fmtMarkup(inv.pass_through_markup_pct)+'</td>'+
           '<td class="num-col num">'+fmtUSD(inv.invoice_amount)+'</td>';
         appendRowActions(tr, { table:"invoices", record:inv, label:inv.invoice_number, fields:INVOICE_FIELDS, editTitle:"Edit invoice", refreshFn:function(){ loadCustomerDetailInvoices(customerId); refreshInvoices(); } });
         body.appendChild(tr);
@@ -3075,13 +3150,13 @@
       function renderPlacementRows(rows){
         plcBody.innerHTML = "";
         rows.forEach(function(p){
-          var custName = (p.customers && p.customers.name) || p.customer_id;
+          var custName = (p.customers && p.customers.name) || "(customer not found)";
           var tr = document.createElement("tr");
           tr.innerHTML =
-            '<td class="strong">'+p.worker_name+'</td>'+
-            '<td>'+custName+'</td>'+
-            '<td>'+(p.state || "—")+'</td>'+
-            '<td>'+(p.wc_class_code || "—")+'</td>'+
+            '<td class="strong">'+escHtml(p.worker_name)+'</td>'+
+            '<td>'+escHtml(custName)+'</td>'+
+            '<td>'+escHtml(p.state || "—")+'</td>'+
+            '<td>'+escHtml(p.wc_class_code || "—")+'</td>'+
             '<td>'+badgeFor(p.status)+'</td>'+
             '<td class="num-col num">'+(p.bill_rate != null ? fmtUSD(p.bill_rate) : "—")+'</td>'+
             '<td class="num-col num">'+(p.pay_rate != null ? fmtUSD(p.pay_rate) : "—")+'</td>'+
@@ -3095,7 +3170,7 @@
         toolbarEl: document.getElementById("plc-filter-bar"),
         rows: placements,
         searchFields: function(p){
-          var custName = (p.customers && p.customers.name) || p.customer_id;
+          var custName = (p.customers && p.customers.name) || "(customer not found)";
           return [p.worker_name, custName, p.state, p.wc_class_code].join(" ");
         },
         searchPlaceholder: "Search placements…",
@@ -3124,9 +3199,9 @@
         rows.forEach(function(e){
           var tr = document.createElement("tr");
           tr.innerHTML =
-            '<td class="strong">'+e.name+'</td>'+
-            '<td>'+(e.title || "—")+'</td>'+
-            '<td>'+(e.department || "—")+'</td>'+
+            '<td class="strong">'+escHtml(e.name)+'</td>'+
+            '<td>'+escHtml(e.title || "—")+'</td>'+
+            '<td>'+escHtml(e.department || "—")+'</td>'+
             '<td>'+badgeFor(e.status)+'</td>'+
             '<td>'+(e.hire_date ? fmtDate(e.hire_date) : "—")+'</td>';
           appendRowActions(tr, { table:"employees", record:e, label:e.name, fields:EMPLOYEE_FIELDS, editTitle:"Edit employee", refreshFn:refreshPlacements });
@@ -3224,7 +3299,7 @@
             '<td class="strong">'+(r.code || "—")+'</td>'+
             '<td>'+(r.state || "—")+'</td>'+
             '<td>'+(r.class_code || "—")+'</td>'+
-            '<td class="num-col num">'+(r.rate != null ? Number(r.rate).toFixed(2) : "—")+'</td>';
+            '<td class="num-col num">'+fmtRate(r.rate)+'</td>';
           appendRowActions(tr, { table:"wc_rates", record:r, label:r.code, fields:WC_RATE_FIELDS, editTitle:"Edit WC rate", refreshFn:refreshPayroll });
           wcBody.appendChild(tr);
         });
@@ -3249,10 +3324,10 @@
           var margin = (p.sales ? (Number(p.gross_profit||0) / Number(p.sales)) * 100 : null);
           var tr = document.createElement("tr");
           tr.innerHTML =
-            '<td class="strong">'+(p.company || "—")+'</td>'+
-            '<td>'+(p.customer || "—")+'</td>'+
-            '<td>'+(p.staffing_location || "—")+'</td>'+
-            '<td>'+(p.state || "—")+'</td>'+
+            '<td class="strong">'+escHtml(p.company || "—")+'</td>'+
+            '<td>'+escHtml(p.customer || "—")+'</td>'+
+            '<td>'+escHtml(p.staffing_location || "—")+'</td>'+
+            '<td>'+escHtml(p.state || "—")+'</td>'+
             '<td>'+(p.check_date ? fmtDate(p.check_date) : "—")+'</td>'+
             '<td class="num-col num">'+fmtUSD(p.sales)+'</td>'+
             '<td class="num-col num">'+fmtUSD(p.wages)+'</td>'+
@@ -3287,13 +3362,14 @@
       var fsgWeeks = uniqueSorted(liveFsg.map(function(f){ return f.check_date; })).reverse();
       var fsgBody = document.querySelector("#fsg-table tbody");
       function renderFsgRows(rows){
+        fsgExportRows = rows.filter(function(f){ return !f.is_deleted; });
         fsgBody.innerHTML = "";
         rows.forEach(function(f){
           var gp = (f.sales ? (Number(f.gross_profit||0) / Number(f.sales)) * 100 : null);
           var tr = document.createElement("tr");
           tr.innerHTML =
-            '<td class="strong">'+f.staffing_location+'</td>'+
-            '<td>'+(f.company || "—")+'</td>'+
+            '<td class="strong">'+escHtml(f.staffing_location)+'</td>'+
+            '<td>'+escHtml(f.company || "—")+'</td>'+
             '<td>'+(f.check_date ? fmtDate(f.check_date) : "—")+'</td>'+
             '<td class="num-col num">'+fmtUSD(f.sales)+'</td>'+
             '<td class="num-col num">'+(gp != null ? gp.toFixed(1) + "%" : "—")+'</td>'+
@@ -3373,7 +3449,11 @@
     var fsgLines = [];
     fsgDataCache.forEach(function(f){
       if(f.check_date !== week) return;
-      var amt = Number(f.owed_to_s4l);
+      // Locations with an "Owed to S4L" amount are invoiced to Frontier Solutions Group in QuickBooks
+      // (customer invoice, with the location's class), so they are NOT on this bill. The bill is the
+      // FSG commission for the locations that have no Owed to S4L amount.
+      if(Number(f.owed_to_s4l)) return;
+      var amt = Number(f.fsg_commission);
       if(!amt) return;
       fsgLines.push({
         category: FSG_CATEGORY,
@@ -3549,6 +3629,7 @@
   }
   function round2(n){ return Math.round((Number(n)||0) * 100) / 100; }
 
+  var FSG_DIRECT_BILLED = ["Midland Truss", "Magic Coil Products LLC", "Timber Creek Housing", "Tower Hensley", "Tower Martinez", "Tower Olney"];
   var uplRef = null; // { codeToCompany: {}, locations: [ {company,customer,staffing_location,state} ], wcRateByCode: {} }
   var uplInited = false;
   var uplPayrollRows = [];
@@ -3645,9 +3726,12 @@
     var rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
     var headerIdx = -1;
     for(var i=0;i<rows.length;i++){
-      if(rows[i] && rows[i][0] === "Company Name"){ headerIdx = i; break; }
+      if(rows[i] && (rows[i][0] === "Company Name" || rows[i][0] === "EntityName")){ headerIdx = i; break; }
     }
-    if(headerIdx === -1) throw new Error("WC report: couldn't find the header row (\"Company Name\"). Is this the right file?");
+    if(headerIdx === -1) throw new Error("WC report: couldn't find the header row (\"Company Name\" or \"EntityName\"). Is this the right file?");
+    // Two layouts: the original report (Company Name header) and the newer master-workbook
+    // layout (EntityName header) that already carries Overtime Excess / WC Wages / TCI Fee.
+    var newLayout = (rows[headerIdx][0] === "EntityName");
     var out = [];
     var payDates = {};
     for(var r=headerIdx+1; r<rows.length; r++){
@@ -3655,6 +3739,15 @@
       if(!row) continue;
       var companyRaw = row[0], payDate = row[1], locDesc = row[2], empName = row[3];
       var workedState = row[7], wcCodeRaw = row[9], totalEarning = row[10], overtimePay = row[11];
+      var overtimeExcess = null;
+      if(newLayout){
+        // EntityName, PeriodBeginDate, PayDate, Department, EmployeeName, SSN, HireDate, BirthDate,
+        // WorkedInState, State Code, HourlyRate, WC Code, GrossPay, Overtime, Overtime Excess, WC Wages, ...
+        payDate = row[2]; locDesc = row[3]; empName = row[4];
+        workedState = row[8]; wcCodeRaw = row[11]; totalEarning = row[12]; overtimePay = row[13];
+        overtimeExcess = (row[14] === null || row[14] === "") ? 0 : (Number(row[14]) || 0);
+      }
+      if(newLayout && (companyRaw === null || companyRaw === "") ) continue; // trailing totals row
       var earning = Number(totalEarning) || 0;
       var nameStr = String(empName || "").trim();
       if((!nameStr || nameStr === ",") && !earning) continue; // blank placeholder rows
@@ -3669,7 +3762,8 @@
         workedState: String(workedState || "").trim(),
         wcCode: String(wcCodeRaw === null ? "" : wcCodeRaw).trim(),
         grossPay: earning,
-        overtimePay: Number(overtimePay) || 0
+        overtimePay: Number(overtimePay) || 0,
+        overtimeExcess: overtimeExcess
       });
     }
     var bestDate = null, bestCount = -1;
@@ -3741,6 +3835,7 @@
       // 1) payroll report -> wages + payroll_taxes per (company, staffing_location)
       var payrollRaw = await parsePayrollReportFile(payrollFile);
       var byKey = {}; // "company||staffing_location" -> row accumulator
+      var mrtByKey = {}; // MRT payroll-code gross pay per location -> contract labor
 
       payrollRaw.forEach(function(pr){
         var company = ref.codeToCompany[pr.code];
@@ -3760,8 +3855,13 @@
             wages: 0, payroll_taxes: 0, workers_comp: 0, sales: null
           };
         }
-        byKey[key].wages += pr.grossPay;
-        byKey[key].payroll_taxes += pr.employerTaxes;
+        if(pr.code === "MRT"){
+          // MRT payroll line = contract labor (no employer taxes), not wages
+          mrtByKey[key] = (mrtByKey[key] || 0) + pr.grossPay;
+        } else {
+          byKey[key].wages += pr.grossPay;
+          byKey[key].payroll_taxes += pr.employerTaxes;
+        }
       });
 
       // 2) per-employee WC report -> workers_comp (TCI fee) per (company, staffing_location)
@@ -3775,7 +3875,7 @@
           uplAddWarning(warnings, "WC report: couldn't match \"" + er.employeeName + "\" (location \"" + er.locationDesc + "\", company \"" + er.companyRaw + "\") to a known staffing location — excluded from workers comp calc.");
           return;
         }
-        if(!er.wcCode){
+        if(!er.wcCode || er.wcCode.toLowerCase() === "exempt"){
           excludedEmployees.push({ name: er.employeeName, location: loc.staffing_location, earning: er.grossPay });
           return;
         }
@@ -3786,7 +3886,11 @@
           unmatchedRateCodes[wkcCode] = (unmatchedRateCodes[wkcCode] || 0) + 1;
           return;
         }
-        var wcWages = er.grossPay - (er.overtimePay / 3);
+        // New layout: the report's own "Overtime Excess" (already 0 for PA/DE, 1/3 of OT pay elsewhere).
+        // Old layout: 1/3 of overtime pay, except PA and DE where no overtime reduction applies.
+        var wcWages = (er.overtimeExcess !== null && er.overtimeExcess !== undefined)
+          ? er.grossPay - er.overtimeExcess
+          : er.grossPay - ((stateAbbr === "PA" || stateAbbr === "DE") ? 0 : (er.overtimePay / 3));
         var tciFee = wcWages * (rate / 100);
         var key = loc.company + "||" + loc.staffing_location;
         if(!byKey[key]){
@@ -3837,7 +3941,7 @@
       Object.keys(byKey).forEach(function(key){
         var row = byKey[key];
         var existing = existingByKey[key];
-        var contractLabor = existing ? (Number(existing.contract_labor) || 0) : 0;
+        var contractLabor = (mrtByKey[key] !== undefined) ? round2(mrtByKey[key]) : (existing ? (Number(existing.contract_labor) || 0) : 0);
         var commissions = (row.customer === "Tower Extrusions" && row.sales) ? round2(row.sales * 0.02) : 0;
         var sales = row.sales !== null ? row.sales : (existing ? existing.sales : null);
         var totalPayrollCost = round2(row.wages + row.payroll_taxes + contractLabor + row.workers_comp + commissions);
@@ -3860,15 +3964,22 @@
       payrollRows.forEach(function(row){
         if(row.company !== "Dynamic Capacity Staffing LLC") return;
         var hasSales = (row.sales !== null && row.sales !== undefined && row.gross_profit !== null && row.gross_profit !== undefined);
-        var fsgCommission = hasSales ? round2(row.gross_profit * 0.686) : null;
-        var owedToS4l = hasSales ? round2(row.sales - fsgCommission - row.commissions) : null;
+        // FSG basis (matches the spreadsheet's "FSG Commission" tab): workers comp is marked up 10%
+        // before gross profit, so FSG gross profit is lower than the payroll_data gross profit.
+        var fsgGrossProfit = hasSales ? round2(row.sales - (row.wages + row.payroll_taxes + row.contract_labor + row.workers_comp * 1.10 + row.commissions)) : null;
+        var fsgCommission = hasSales ? round2(fsgGrossProfit * 0.686) : null;
+        // "Owed to S4L" only applies to the locations FSG (CACH Labor) bills directly, as on the
+        // spreadsheet's FSG Commission tab: wages + taxes + workers comp x1.10 + (FSG gross profit - FSG commission).
+        var owedToS4l = (hasSales && FSG_DIRECT_BILLED.indexOf(row.staffing_location) !== -1)
+          ? round2(row.wages + row.payroll_taxes + row.workers_comp * 1.10 + (fsgGrossProfit - fsgCommission))
+          : null;
         if(!hasSales){
           uplAddWarning(warnings, row.staffing_location + ": no Sales figure yet, so FSG commission / Owed to S4L will show blank until an invoice is scanned or entered.");
         }
         fsgRows.push({
           id: fsgRowId(checkDate, row.staffing_location),
           staffing_location: row.staffing_location, company: row.company, state: row.state, check_date: checkDate,
-          sales: row.sales, gross_profit: row.gross_profit, fsg_commission: fsgCommission, owed_to_s4l: owedToS4l, wages: row.wages
+          sales: row.sales, gross_profit: fsgGrossProfit, fsg_commission: fsgCommission, owed_to_s4l: owedToS4l, wages: row.wages
         });
       });
 
