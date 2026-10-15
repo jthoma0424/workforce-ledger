@@ -984,7 +984,7 @@
                 <div id="fsg-filter-bar"></div>
                 <div class="table-scroll">
                   <table class="data-table" id="fsg-table">
-                    <thead><tr><th>Location</th><th>Company</th><th>Week ending</th><th class="num-col">Sales</th><th class="num-col">GP%</th><th class="num-col">FSG commission</th><th class="num-col">Owed to S4L</th><th class="actions-col admin-only" hidden>Actions</th></tr></thead>
+                    <thead><tr><th>Location</th><th>Company</th><th>Week ending</th><th class="num-col">Sales</th><th class="num-col">Wages</th><th class="num-col">Payroll taxes</th><th class="num-col">Contract labor</th><th class="num-col">Workers comp (+10%)</th><th class="num-col">4ward commission</th><th class="num-col">Gross profit</th><th class="num-col">GP%</th><th class="num-col">FSG commission</th><th class="num-col">Owed to S4L</th><th class="actions-col admin-only" hidden>Actions</th></tr></thead>
                     <tbody></tbody>
                   </table>
                 </div>
@@ -1090,7 +1090,7 @@
                 <div class="table-scroll">
                   <table class="data-table" id="upl-fsg-table">
                     <thead><tr>
-                      <th>Location</th><th class="num-col">Sales</th><th class="num-col">Gross profit</th>
+                      <th>Location</th><th class="num-col">Sales</th><th class="num-col">Wages</th><th class="num-col">Payroll taxes</th><th class="num-col">Contract labor</th><th class="num-col">Workers comp (+10%)</th><th class="num-col">4ward commission</th><th class="num-col">Gross profit</th>
                       <th class="num-col">GP%</th><th class="num-col">FSG commission</th><th class="num-col">Owed to S4L</th>
                     </tr></thead>
                     <tbody></tbody>
@@ -2445,36 +2445,37 @@
     if(!rows.length){ statusEl.textContent = "Nothing to export for this view."; return; }
     if(typeof XLSX === "undefined"){ statusEl.textContent = "Excel library didn't load; refresh and try again."; return; }
     var r2 = function(n){ return Math.round((Number(n) || 0) * 100) / 100; };
-    var header = ["Location", "Company", "Week ending", "Sales", "Gross profit", "GP %", "FSG commission", "Owed to S4L"];
+    var opt = function(v){ return (v === null || v === undefined) ? null : r2(v); };
+    var header = ["Location", "Company", "Week ending", "Sales", "Wages", "Payroll taxes", "Contract labor", "Workers comp (+10%)", "4ward commission", "Gross profit", "GP %", "FSG commission", "Owed to S4L"];
     var aoa = [header];
     rows.forEach(function(f){
       var sales = (f.sales === null || f.sales === undefined) ? null : r2(f.sales);
       var gp = (f.gross_profit === null || f.gross_profit === undefined) ? null : r2(f.gross_profit);
       aoa.push([
         f.staffing_location || "", f.company || "", f.check_date ? fmtDateMDY(f.check_date) : "",
-        sales, gp, (sales && gp !== null) ? gp / sales : null,
-        (f.fsg_commission === null || f.fsg_commission === undefined) ? null : r2(f.fsg_commission),
-        (f.owed_to_s4l === null || f.owed_to_s4l === undefined) ? null : r2(f.owed_to_s4l)
+        sales, opt(f.wages), opt(f.payroll_taxes), opt(f.contract_labor), opt(f.workers_comp), opt(f.four_ward),
+        gp, (sales && gp !== null) ? gp / sales : null,
+        opt(f.fsg_commission), opt(f.owed_to_s4l)
       ]);
     });
     var ws = XLSX.utils.aoa_to_sheet(aoa);
     var last = aoa.length; // header + data rows -> last data row number = aoa.length
-    var totalRow = ["Total", "", "", null, null, null, null, null];
+    var totalRow = ["Total", "", "", null, null, null, null, null, null, null, null, null, null];
     XLSX.utils.sheet_add_aoa(ws, [totalRow], { origin: "A" + (last + 1) });
-    ["D", "E", "G", "H"].forEach(function(col){
+    var MONEY_COLS = ["D", "E", "F", "G", "H", "I", "J", "L", "M"];
+    MONEY_COLS.forEach(function(col){
       var sum = 0;
       for(var i = 1; i < aoa.length; i++){
-        var idx = { D: 3, E: 4, G: 6, H: 7 }[col];
-        sum += Number(aoa[i][idx]) || 0;
+        sum += Number(aoa[i][col.charCodeAt(0) - 65]) || 0;
       }
       ws[col + (last + 1)] = { t: "n", f: "SUM(" + col + "2:" + col + last + ")", v: r2(sum) };
     });
     for(var rr = 2; rr <= last + 1; rr++){
-      ["D", "E", "G", "H"].forEach(function(col){ if(ws[col + rr]) ws[col + rr].z = "#,##0.00"; });
-      if(ws["F" + rr]) ws["F" + rr].z = "0.0%";
+      MONEY_COLS.forEach(function(col){ if(ws[col + rr]) ws[col + rr].z = "#,##0.00"; });
+      if(ws["K" + rr]) ws["K" + rr].z = "0.0%";
     }
-    ws["!cols"] = [{ wch: 34 }, { wch: 32 }, { wch: 13 }, { wch: 14 }, { wch: 14 }, { wch: 9 }, { wch: 16 }, { wch: 14 }];
-    ws["!ref"] = "A1:H" + (last + 1);
+    ws["!cols"] = [{ wch: 34 }, { wch: 32 }, { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 19 }, { wch: 17 }, { wch: 13 }, { wch: 8 }, { wch: 16 }, { wch: 14 }];
+    ws["!ref"] = "A1:M" + (last + 1);
     var weeks = {}; rows.forEach(function(f){ weeks[f.check_date] = true; });
     var weekKeys = Object.keys(weeks);
     var fname = "FSG-commission-" + (weekKeys.length === 1 ? weekKeys[0] : "all-weeks") + ".xlsx";
@@ -2495,6 +2496,10 @@
     {key:'fsg_commission', label:'FSG commission', type:'number', step:'0.01'},
     {key:'owed_to_s4l', label:'Owed to S4L', type:'number', step:'0.01'},
     {key:'wages', label:'Wages', type:'number', step:'0.01'},
+    {key:'payroll_taxes', label:'Payroll taxes', type:'number', step:'0.01'},
+    {key:'contract_labor', label:'Contract labor', type:'number', step:'0.01'},
+    {key:'workers_comp', label:'Workers comp (+10%)', type:'number', step:'0.01'},
+    {key:'four_ward', label:'4ward commission', type:'number', step:'0.01'},
     {key:'notes', label:'Notes', type:'textarea'}
   ];
 
@@ -3372,6 +3377,12 @@
             '<td>'+escHtml(f.company || "—")+'</td>'+
             '<td>'+(f.check_date ? fmtDate(f.check_date) : "—")+'</td>'+
             '<td class="num-col num">'+fmtUSD(f.sales)+'</td>'+
+            '<td class="num-col num">'+fmtUSD(f.wages)+'</td>'+
+            '<td class="num-col num">'+fmtUSD(f.payroll_taxes)+'</td>'+
+            '<td class="num-col num">'+fmtUSD(f.contract_labor)+'</td>'+
+            '<td class="num-col num">'+fmtUSD(f.workers_comp)+'</td>'+
+            '<td class="num-col num">'+fmtUSD(f.four_ward)+'</td>'+
+            '<td class="num-col num">'+fmtUSD(f.gross_profit)+'</td>'+
             '<td class="num-col num">'+(gp != null ? gp.toFixed(1) + "%" : "—")+'</td>'+
             '<td class="num-col num">'+fmtUSD(f.fsg_commission)+'</td>'+
             '<td class="num-col num">'+fmtUSD(f.owed_to_s4l)+'</td>';
@@ -3979,7 +3990,9 @@
         fsgRows.push({
           id: fsgRowId(checkDate, row.staffing_location),
           staffing_location: row.staffing_location, company: row.company, state: row.state, check_date: checkDate,
-          sales: row.sales, gross_profit: fsgGrossProfit, fsg_commission: fsgCommission, owed_to_s4l: owedToS4l, wages: row.wages
+          sales: row.sales, gross_profit: fsgGrossProfit, fsg_commission: fsgCommission, owed_to_s4l: owedToS4l, wages: row.wages,
+          payroll_taxes: row.payroll_taxes, contract_labor: row.contract_labor,
+          workers_comp: round2(row.workers_comp * 1.10), four_ward: row.commissions
         });
       });
 
@@ -4032,6 +4045,11 @@
       tr.innerHTML =
         '<td class="strong">'+escHtml(f.staffing_location)+'</td>'+
         '<td class="num-col num">'+fmtUSD(f.sales)+'</td>'+
+        '<td class="num-col num">'+fmtUSD(f.wages)+'</td>'+
+        '<td class="num-col num">'+fmtUSD(f.payroll_taxes)+'</td>'+
+        '<td class="num-col num">'+fmtUSD(f.contract_labor)+'</td>'+
+        '<td class="num-col num">'+fmtUSD(f.workers_comp)+'</td>'+
+        '<td class="num-col num">'+fmtUSD(f.four_ward)+'</td>'+
         '<td class="num-col num">'+fmtUSD(f.gross_profit)+'</td>'+
         '<td class="num-col num">'+(gpPct!=null?gpPct.toFixed(1)+"%":"—")+'</td>'+
         '<td class="num-col num">'+fmtUSD(f.fsg_commission)+'</td>'+
