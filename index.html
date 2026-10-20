@@ -495,6 +495,7 @@
         <button class="pill" type="button" data-section="invoices">Invoices</button>
         <button class="pill" type="button" data-section="placements">Placements &amp; workforce</button>
         <button class="pill" type="button" data-section="payroll">Payroll &amp; commissions</button>
+        <button class="pill" type="button" data-section="paytools">Payroll tools</button>
         <button class="pill admin-only" type="button" data-section="upload" hidden>Weekly update</button>
         <button class="pill" type="button" data-section="mobile">Mobile summary</button>
       </div>
@@ -910,39 +911,6 @@
           <div id="pay-view" hidden>
             <div class="kpi-grid" id="pay-kpi-grid"></div>
 
-            <div class="panel-row">
-              <section class="panel">
-                <div class="panel-head">
-                  <div>
-                    <div class="panel-title">Sales vs. gross profit</div>
-                    <div class="panel-sub" id="pay-range"></div>
-                  </div>
-                </div>
-                <div class="legend">
-                  <span class="legend-item"><span class="legend-swatch" style="background:var(--series-1)"></span>Sales</span>
-                  <span class="legend-item"><span class="legend-swatch" style="background:var(--series-2)"></span>Gross profit</span>
-                </div>
-                <div class="chart-wrap" id="pay-chart-wrap"></div>
-              </section>
-
-              <section class="panel">
-                <div class="panel-head">
-                  <div>
-                    <div class="panel-title">WC rate card</div>
-                    <div class="panel-sub" id="wc-count-sub"></div>
-                  </div>
-                  <button type="button" class="btn-sm admin-only" id="wc-add-btn" hidden>+ Add rate</button>
-                </div>
-                <div id="wc-filter-bar"></div>
-                <div class="table-scroll">
-                  <table class="data-table" id="wc-table">
-                    <thead><tr><th>Code</th><th>State</th><th>Class</th><th class="num-col">Rate /$100</th><th class="actions-col admin-only" hidden>Actions</th></tr></thead>
-                    <tbody></tbody>
-                  </table>
-                </div>
-              </section>
-            </div>
-
             <div class="panel-row" style="grid-template-columns:1fr;">
               <section class="panel">
                 <div class="panel-head">
@@ -991,6 +959,47 @@
               </section>
             </div>
 
+          </div>
+        </div>
+
+                <div class="view" id="view-paytools" hidden>
+          <div class="loading-row" id="paytools-loading"><span class="spinner"></span>Loading payroll tools…</div>
+          <div class="login-msg err" id="paytools-err" style="display:none; margin-bottom:16px;"></div>
+
+          <div id="paytools-view" hidden>
+            <div class="panel-row">
+              <section class="panel">
+                <div class="panel-head">
+                  <div>
+                    <div class="panel-title">Sales vs. gross profit</div>
+                    <div class="panel-sub" id="pay-range"></div>
+                  </div>
+                </div>
+                <div class="legend">
+                  <span class="legend-item"><span class="legend-swatch" style="background:var(--series-1)"></span>Sales</span>
+                  <span class="legend-item"><span class="legend-swatch" style="background:var(--series-2)"></span>Gross profit</span>
+                </div>
+                <div class="chart-wrap" id="pay-chart-wrap"></div>
+              </section>
+
+              <section class="panel">
+                <div class="panel-head">
+                  <div>
+                    <div class="panel-title">WC rate card</div>
+                    <div class="panel-sub" id="wc-count-sub"></div>
+                  </div>
+                  <button type="button" class="btn-sm admin-only" id="wc-add-btn" hidden>+ Add rate</button>
+                </div>
+                <div id="wc-filter-bar"></div>
+                <div class="table-scroll">
+                  <table class="data-table" id="wc-table">
+                    <thead><tr><th>Code</th><th>State</th><th>Class</th><th class="num-col">Rate /$100</th><th class="actions-col admin-only" hidden>Actions</th></tr></thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+
             <div class="panel-row admin-only" id="bills-export-row" style="grid-template-columns:1fr;" hidden>
               <section class="panel">
                 <div class="panel-head">
@@ -1015,7 +1024,7 @@
           </div>
         </div>
 
-        <div class="view" id="view-upload" hidden>
+<div class="view" id="view-upload" hidden>
           <div class="panel-row" style="grid-template-columns:1fr;">
             <section class="panel">
               <div class="panel-head">
@@ -1311,7 +1320,7 @@
   });
 
   // ---------- section nav ----------
-  var SECTION_IDS = ["home", "finance", "customers", "invoices", "placements", "payroll", "upload", "mobile"];
+  var SECTION_IDS = ["home", "finance", "customers", "invoices", "placements", "payroll", "paytools", "upload", "mobile"];
   var sectionPills = document.querySelectorAll(".pill[data-section]");
   function showSection(sec){
     var custDetail = document.getElementById("view-customer-detail");
@@ -1326,7 +1335,7 @@
     else if(sec === "customers") loadCustomers();
     else if(sec === "invoices") loadInvoices();
     else if(sec === "placements") loadPlacements();
-    else if(sec === "payroll") loadPayroll();
+    else if(sec === "payroll" || sec === "paytools") loadPayroll();
     else if(sec === "upload") initUploadSection();
     else if(sec === "mobile") loadDashboard().then(renderMobileSummary);
   }
@@ -3410,10 +3419,16 @@
 
       loadingRow.hidden = true;
       view.hidden = false;
+      document.getElementById("paytools-loading").hidden = true;
+      document.getElementById("paytools-view").hidden = false;
     }catch(err){
       loadingRow.hidden = true;
       errBox.style.display = "block";
       errBox.textContent = "Couldn't load payroll & commissions: " + ((err && err.message) || "unknown error");
+      document.getElementById("paytools-loading").hidden = true;
+      var ptErr = document.getElementById("paytools-err");
+      ptErr.style.display = "block";
+      ptErr.textContent = errBox.textContent;
     }
   }
 
