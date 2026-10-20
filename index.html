@@ -3673,13 +3673,8 @@ window.addEventListener("unhandledrejection", function(e){
   async function loadDashboard(){
     if(loaded) return;
     try{
-      var loadResults = await Promise.all([
-        sb.from("snapshots").select("*").order("date", {ascending:true}),
-        loadOfficeMeta()
-      ]);
-      var res = loadResults[0];
-      if(res.error) throw res.error;
-      financeRows = (res.data || []).filter(function(r){ return !r.is_deleted; });
+      var loadResults = await Promise.all([ fetchFinRows(), loadOfficeMeta() ]);
+      financeRows = loadResults[0];
       if(financeRows.length) loaded = true;
     }catch(err){
       console.error("Couldn't load finance snapshots:", err);
@@ -3700,11 +3695,121 @@ window.addEventListener("unhandledrejection", function(e){
     if(d.bankAccounts !== undefined) o.bank_accounts = d.bankAccounts;
     return o;
   }
-  async function fetchFinRows(){
+  async function fetchFinRowsRaw(){
     var res = await sb.from("snapshots").select("*").order("date", {ascending:true});
     if(res.error) throw res.error;
     return (res.data || []).filter(function(r){ return !r.is_deleted; });
   }
+
+  // ---- Finance overview reads the Payroll tab once it has enough weeks ----
+  var FIN_PAYROLL_MIN_WEEKS = 4;
+  var finSourceInfo = { payrollWeeks: 0, used: false, dates: [], error: null };
+  function isoAddDays(iso, n){
+    var d = new Date(String(iso).slice(0,10) + "T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0,10);
+  }
+  async function fetchPayrollForFinance(){
+    var all = [], from = 0, size = 1000;
+    while(true){
+      var r = await sb.from("payroll_data")
+        .select("check_date,company,customer,staffing_location,state,sales,total_payroll_cost,headcount")
+        .order("check_date", {ascending:true}).range(from, from + size - 1);
+      if(r.error){
+        // headcount column not added yet: read without it
+        if(/headcount/i.test(r.error.message || "") && from === 0){
+          r = await sb.from("payroll_data").select("check_date,company,customer,staffing_location,state,sales,total_payroll_cost")
+            .order("check_date", {ascending:true}).range(from, from + size - 1);
+        }
+        if(r.error) throw r.error;
+      }
+      var d = r.data || [];
+      all = all.concat(d);
+      if(d.length < size) break;
+      from += size;
+    }
+    var codes = {};
+    var lr = await sb.from("payroll_locations").select("staffing_location,office_code");
+    if(!lr.error){
+      (lr.data || []).forEach(function(l){ if(l.office_code) codes[String(l.staffing_location).toLowerCase()] = String(l.office_code); });
+    }
+    return { rows: all, codes: codes };
+  }
+  function buildPayrollWeeks(rows, codes){
+    var weeks = {};
+    rows.forEach(function(p){
+      // Not part of the staffing P&L: the All Truss LLC entity and the Workforce Strategies HQ row.
+      if(p.company === "All Truss LLC" || p.staffing_location === "Workforce Strategies") return;
+      var wk = isoAddDays(p.check_date, -6);   // check date is the Friday after the week ends
+      var w = weeks[wk] = weeks[wk] || { date: wk, sales: 0, cogs: 0, offices: {}, states: {}, hcOk: true, hcTotal: 0, cust: {}, mgr: {}, offHc: {}, stHc: {} };
+      var sales = Number(p.sales) || 0, cost = Number(p.total_payroll_cost) || 0;
+      var code = codes[String(p.staffing_location || "").toLowerCase()] || p.staffing_location;
+      var st = p.state || "";
+      w.sales += sales; w.cogs += cost;
+      var o = w.offices[code] = w.offices[code] || { code: code, state: st, sales: 0, cogs: 0 };
+      o.sales += sales; o.cogs += cost;
+      var s2 = w.states[st] = w.states[st] || { state: st, sales: 0, cogs: 0 };
+      s2.sales += sales; s2.cogs += cost;
+      if(p.headcount === null || p.headcount === undefined){ w.hcOk = false; }
+      else{
+        var h = Number(p.headcount) || 0;
+        var mgr = (p.company === "Dynamic Capacity Staffing LLC") ? "Cach Labor" : "Workforce Strategies";
+        w.hcTotal += h;
+        w.cust[p.customer] = (w.cust[p.customer] || 0) + h;
+        w.mgr[mgr] = (w.mgr[mgr] || 0) + h;
+        w.offHc[code] = (w.offHc[code] || 0) + h;
+        w.stHc[st] = (w.stHc[st] || 0) + h;
+      }
+    });
+    return weeks;
+  }
+  function payrollWeekToFin(w){
+    function r2(n){ return Math.round(n * 100) / 100; }
+    function counts(map, keyName){
+      return Object.keys(map).filter(function(k){ return map[k] > 0; }).map(function(k){ var o = { count: map[k] }; o[keyName] = k; return o; })
+        .sort(function(a,b){ return b.count - a.count; });
+    }
+    var out = {
+      company_pl: { sales: r2(w.sales), cogs: r2(w.cogs) },
+      offices: Object.keys(w.offices).map(function(k){ var o = w.offices[k]; return { code: o.code, state: o.state, sales: r2(o.sales), cogs: r2(o.cogs) }; }),
+      states: Object.keys(w.states).map(function(k){ var o = w.states[k]; return { state: o.state, sales: r2(o.sales), cogs: r2(o.cogs) }; }),
+      headcount: null
+    };
+    if(w.hcOk){
+      out.headcount = { total: w.hcTotal, customers: counts(w.cust, "name"), managers: counts(w.mgr, "name"), offices: counts(w.offHc, "code"), states: counts(w.stHc, "state") };
+    }
+    return out;
+  }
+  function overlayPayroll(snapRows, pay){
+    var weeks = buildPayrollWeeks(pay.rows, pay.codes);
+    var dates = Object.keys(weeks).sort();
+    finSourceInfo = { payrollWeeks: dates.length, used: dates.length >= FIN_PAYROLL_MIN_WEEKS, dates: [], error: null };
+    if(!finSourceInfo.used) return snapRows;
+    var byDate = {};
+    snapRows.forEach(function(r){ byDate[r.date] = Object.assign({}, r); });
+    dates.forEach(function(d){
+      var f = payrollWeekToFin(weeks[d]);
+      var base = byDate[d] || { date: d, cash: null, ar: null, ap: null, bank_accounts: [], headcount: null };
+      base.company_pl = f.company_pl; base.offices = f.offices; base.states = f.states;
+      if(f.headcount) base.headcount = f.headcount;
+      base._source = "payroll";
+      byDate[d] = base;
+      finSourceInfo.dates.push(d);
+    });
+    return Object.keys(byDate).sort().map(function(k){ return byDate[k]; });
+  }
+  async function fetchFinRows(){
+    var raw = await fetchFinRowsRaw();
+    try{
+      var pay = await fetchPayrollForFinance();
+      return overlayPayroll(raw, pay);
+    }catch(e){
+      console.error("Finance: payroll data not used", e);
+      finSourceInfo = { payrollWeeks: 0, used: false, dates: [], error: (e && e.message) || "error" };
+      return raw;
+    }
+  }
+
   var finListeners = [];
   function notifyFin(rows){
     financeRows = rows;
@@ -3740,6 +3845,26 @@ window.addEventListener("unhandledrejection", function(e){
     }; }
   }; } };
 
+  function renderFinSourceNote(host){
+    var el = document.getElementById("fin-source-note");
+    if(!el){
+      el = document.createElement("div");
+      el.id = "fin-source-note";
+      el.className = "form-note";
+      el.style.cssText = "margin:0 0 14px;padding:10px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;";
+      host.insertBefore(el, host.firstChild);
+    }
+    var i = finSourceInfo;
+    if(i.used){
+      el.textContent = "Sales, cost of sales, margin and headcount come from the Payroll tab for the " + i.dates.length + " week(s) with payroll data (" +
+        fmtDate(i.dates[0]) + " – " + fmtDate(i.dates[i.dates.length-1]) + "); earlier weeks use the QuickBooks snapshot. Cash, AR and AP always come from the weekly balance sheet. " +
+        "A payroll week uploaded before worker counts were recorded keeps its snapshot headcount.";
+    }else{
+      el.textContent = "Showing the QuickBooks snapshots. This tab switches to Payroll tab numbers (sales, cost, margin, headcount) once the Payroll tab has " +
+        FIN_PAYROLL_MIN_WEEKS + " weeks of data; it has " + i.payrollWeeks + " now." + (i.error ? " (Couldn't read payroll data: " + i.error + ")" : "");
+    }
+  }
+
   function applyFinanceRole(){
     var host = document.getElementById("formHost");
     var sec = host && host.closest ? host.closest("section") : null;
@@ -3764,6 +3889,7 @@ window.addEventListener("unhandledrejection", function(e){
       window.WLFinance.unmount();
       finListeners = [];
       window.WLFinance.mount(host, finDb, rows.map(snapToFin));
+      renderFinSourceNote(host);
       applyFinanceRole();
     }catch(err){
       loadingRow.hidden = true;
@@ -5266,6 +5392,7 @@ window.addEventListener("unhandledrejection", function(e){
       var payrollRaw = await parsePayrollReportFile(payrollFile);
       var byKey = {}; // "company||staffing_location" -> row accumulator
       var mrtByKey = {}; // MRT payroll-code gross pay per location -> contract labor
+      var hcByKey = {}; // "company||staffing_location" -> distinct employees (for Finance headcount)
 
       payrollRaw.forEach(function(pr){
         var company = ref.codeToCompany[pr.code];
@@ -5309,6 +5436,8 @@ window.addEventListener("unhandledrejection", function(e){
           excludedEmployees.push({ name: er.employeeName, location: loc.staffing_location, earning: er.grossPay });
           return;
         }
+        var hcKey = loc.company + "||" + loc.staffing_location;
+        (hcByKey[hcKey] = hcByKey[hcKey] || {})[er.employeeName.toLowerCase()] = 1;
         var stateAbbr = STATE_NAME_TO_ABBR[er.workedState.toLowerCase()] || loc.state;
         var wkcCode = (stateAbbr + er.wcCode).toUpperCase();
         var rate = ref.wcRateByCode[wkcCode];
@@ -5382,7 +5511,8 @@ window.addEventListener("unhandledrejection", function(e){
           check_date: checkDate,
           sales: sales, wages: round2(row.wages), payroll_taxes: round2(row.payroll_taxes),
           contract_labor: contractLabor, workers_comp: round2(row.workers_comp), commissions: commissions,
-          total_payroll_cost: totalPayrollCost, gross_profit: grossProfit
+          total_payroll_cost: totalPayrollCost, gross_profit: grossProfit,
+          headcount: hcByKey[key] ? Object.keys(hcByKey[key]).length : null
         });
       });
       payrollRows.sort(function(a,b){ return (a.company+a.staffing_location).localeCompare(b.company+b.staffing_location); });
@@ -5487,6 +5617,10 @@ window.addEventListener("unhandledrejection", function(e){
     btn.disabled = true; btn.textContent = "Submitting…"; statusEl.textContent = "";
     try{
       var payRes = await sb.from("payroll_data").upsert(uplPayrollRows, { onConflict: "id" });
+      if(payRes.error && /headcount/i.test(payRes.error.message || "")){
+        // The headcount column hasn't been added yet (payroll_finance_link.sql) -- save without it.
+        payRes = await sb.from("payroll_data").upsert(uplPayrollRows.map(function(r){ var c = Object.assign({}, r); delete c.headcount; return c; }), { onConflict: "id" });
+      }
       if(payRes.error) throw payRes.error;
       if(uplFsgRows.length){
         var fsgRes = await sb.from("fsg_commission").upsert(uplFsgRows, { onConflict: "id" });
