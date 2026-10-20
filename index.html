@@ -440,6 +440,324 @@
   .spinner{width:14px;height:14px;border-radius:50%;border:2px solid var(--grid); border-top-color:var(--series-1); animation:spin .7s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
   [hidden]{display:none !important;}
+  /* ===== Finance view (ported dashboard) ===== */
+.fin-view{box-sizing:border-box;}
+  .fin-view{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Public Sans", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .fin-view .wrap{max-width:1180px;margin:0 auto;padding:32px 24px 80px;}
+
+  /* ---------- week picker ---------- */
+  .fin-view .week-picker-bar{display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-bottom:14px;flex-wrap:wrap;}
+  .fin-view .week-picker-label{
+    font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;
+  }
+  .fin-view #weekSelect{
+    font-family:"IBM Plex Mono",monospace;font-size:12.5px;padding:7px 10px;border:1px solid var(--border);
+    border-radius:7px;background:var(--surface);color:var(--ink);cursor:pointer;max-width:100%;
+  }
+  .fin-view #weekSelect:focus{outline:2px solid var(--warn);outline-offset:1px;}
+  .fin-view .week-picker-note{
+    background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn);border-radius:8px;
+    padding:9px 14px;font-size:12.5px;font-weight:600;margin-bottom:20px;
+  }
+  @media (max-width:520px){ .fin-view .week-picker-bar{justify-content:flex-start;} }
+
+  /* ---------- header ---------- */
+  .fin-view header.top{
+    display:flex;justify-content:space-between;align-items:flex-end;gap:24px;
+    flex-wrap:wrap;
+    padding-bottom:22px;border-bottom:2px solid var(--border);margin-bottom:28px;
+  }
+  .fin-view .brand-eyebrow{
+    font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--warn);
+    font-weight:700;margin:0 0 6px;
+  }
+  .fin-view h1{
+    font-family:"Zilla Slab", Georgia, serif;
+    font-weight:600;
+    font-size:clamp(26px,3.4vw,38px);
+    margin:0;
+    letter-spacing:-.01em;
+    text-wrap:balance;
+  }
+  .fin-view .top-meta{text-align:right;font-size:13px;color:var(--ink-soft);line-height:1.6;}
+  .fin-view .top-meta strong{color:var(--ink);font-weight:600;}
+  .fin-view .as-of-date{font-family:"IBM Plex Mono", monospace;}
+
+  .fin-view section{margin-bottom:36px;}
+  .fin-view .section-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+  .fin-view .section-title{
+    font-family:"Zilla Slab", Georgia, serif;font-weight:600;font-size:19px;margin:0;color:var(--ink);
+  }
+  .fin-view .section-sub{font-size:12.5px;color:var(--muted);}
+
+  /* ---------- KPI tiles ---------- */
+  .fin-view .kpi-grid{
+    display:grid;gap:1px;
+    background:var(--border);border:1px solid var(--border);overflow:hidden;
+    box-shadow:var(--shadow);
+  }
+  .fin-view .kpi-grid-4{grid-template-columns:repeat(4,1fr);}
+  .fin-view .kpi-grid-top{border-radius:10px 10px 0 0;}
+  .fin-view .kpi-grid-bottom{border-radius:0 0 10px 10px;border-top:none;}
+  .fin-view .kpi-tile{
+    background:var(--surface);padding:16px 18px;min-height:118px;
+    display:flex;flex-direction:column;gap:8px;
+  }
+  .fin-view .kpi-label{
+    font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;
+  }
+  .fin-view .kpi-value{font-size:24px;font-weight:700;letter-spacing:-.01em;}
+  .fin-view .kpi-deltas{display:flex;flex-direction:column;gap:4px;margin-top:auto;}
+  .fin-view .delta-pill{
+    display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;width:fit-content;
+  }
+  .fin-view .delta-pill .arrow{font-size:11px;}
+  .fin-view .delta-pill.up{color:var(--good);}
+  .fin-view .delta-pill.down{color:var(--critical);}
+  .fin-view .delta-pill.flat{color:var(--muted);}
+  .fin-view .delta-caption{font-size:10.5px;color:var(--muted);font-weight:500;}
+  .fin-view .kpi-empty{font-size:12px;color:var(--muted);font-style:italic;}
+
+  @media (max-width:920px){ .fin-view .kpi-grid-4{grid-template-columns:repeat(2,1fr);} }
+  @media (max-width:520px){ .fin-view .kpi-grid-4{grid-template-columns:1fr;} }
+
+  /* ---------- movers ---------- */
+  .fin-view .movers-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;}
+  .fin-view .mover-card{
+    background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;
+    box-shadow:var(--shadow);
+  }
+  .fin-view .mover-state{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:13px;color:var(--ink-soft);letter-spacing:.03em;}
+  .fin-view .mover-amt{font-size:19px;font-weight:700;margin-top:4px;}
+  .fin-view .mover-sub{font-size:12px;margin-top:3px;font-weight:600;}
+  .fin-view .empty-note{
+    background:var(--surface-2);border:1px dashed var(--border);border-radius:10px;
+    padding:16px 18px;color:var(--muted);font-size:13px;
+  }
+
+  /* ---------- location table ---------- */
+  .fin-view .table-card{
+    background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:var(--shadow);
+  }
+  .fin-view .scroll-x{overflow-x:auto;}
+  .fin-view table.loc{width:100%;border-collapse:collapse;min-width:640px;}
+  .fin-view table.loc th{
+    text-align:right;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--tbl-head-ink);
+    font-weight:600;padding:9px 14px;border-bottom:none;background:var(--tbl-head-bg);
+    white-space:nowrap;
+  }
+  .fin-view table.loc th:first-child, .fin-view table.loc td:first-child{text-align:left;}
+  .fin-view table.loc td{
+    padding:8px 14px;border-bottom:1px solid var(--border);font-family:"IBM Plex Mono",monospace;
+    font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;
+  }
+  .fin-view table.loc td.state-cell{font-family:"Public Sans",sans-serif;font-weight:600;font-size:13px;color:var(--ink);}
+  .fin-view table.loc tr:last-child td{border-bottom:none;}
+  .fin-view table.loc tr.neg-row{background:var(--critical-soft);}
+  .fin-view table.loc tr.group-row td{
+    background:var(--tbl-group-bg); border-bottom:1px solid var(--border);
+  }
+  .fin-view table.loc tr.group-row td.state-cell{
+    color:var(--tbl-group-ink); font-weight:700;
+  }
+  .fin-view table.loc tr.group-row.neg-row td{background:var(--critical-soft);}
+  .fin-view .sales-cell{position:relative;}
+  .fin-view .bar-track{position:absolute;left:14px;right:14px;top:50%;height:14px;transform:translateY(-50%);
+    background:var(--surface-2);border-radius:3px;overflow:hidden;z-index:0;}
+  .fin-view .bar-fill{height:100%;background:var(--warn);opacity:.28;border-radius:3px 0 0 3px;}
+  .fin-view .sales-num{position:relative;z-index:1;}
+  .fin-view .margin-chip{
+    display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-weight:700;font-size:12px;
+  }
+  .fin-view .margin-chip.good{background:var(--good-soft);color:var(--good);}
+  .fin-view .margin-chip.bad{background:var(--critical-soft);color:var(--critical);}
+  .fin-view .margin-chip.neutral{background:var(--surface-2);color:var(--muted);}
+  .fin-view .row-delta{font-size:10.5px;font-weight:600;display:block;margin-top:1px;}
+  .fin-view .row-delta.up{color:var(--good);}
+  .fin-view .row-delta.down{color:var(--critical);}
+  .fin-view tfoot td{
+    font-weight:700;border-top:1.5px solid var(--tbl-total-border);background:var(--tbl-total-bg);color:var(--ink);
+  }
+  .fin-view .state-toggle{
+    background:none;border:none;cursor:pointer;padding:0;margin-right:6px;color:inherit;
+    font-size:9px;display:inline-block;transition:transform .12s ease;width:10px;opacity:.7;
+  }
+  .fin-view .state-toggle.open{transform:rotate(90deg);}
+  .fin-view .state-cell button.state-toggle:disabled{visibility:hidden;}
+  .fin-view tr.office-row{background:var(--surface);display:none;}
+  .fin-view tr.office-row.show{display:table-row;}
+  .fin-view tr.office-row td{font-size:12px;color:var(--ink-soft);font-weight:400;padding:7px 14px 7px 34px;border-bottom:1px solid var(--border);}
+  .fin-view tr.office-row td.office-name-cell{font-family:"Public Sans",sans-serif;font-weight:400;color:var(--muted);}
+  .fin-view tr.office-row td.office-name-cell .office-co{display:block;font-size:9.5px;color:var(--muted);font-weight:400;margin-top:1px;}
+  .fin-view .hc-num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;}
+
+  /* ---------- trend charts ---------- */
+  .fin-view .trend-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  @media (max-width:820px){ .fin-view .trend-row{grid-template-columns:1fr;} }
+  .fin-view .trend-card{
+    background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px 10px;
+    box-shadow:var(--shadow);
+  }
+  .fin-view .trend-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+  .fin-view .trend-name{font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:6px;}
+  .fin-view .swatch{width:9px;height:9px;border-radius:50%;display:inline-block;}
+  .fin-view .trend-value{font-size:15px;font-weight:700;font-family:"IBM Plex Mono",monospace;}
+  .fin-view .trend-svg{width:100%;height:92px;display:block;}
+  .fin-view .trend-empty{
+    height:92px;display:flex;align-items:center;justify-content:center;color:var(--muted);
+    font-size:12px;text-align:center;padding:0 10px;
+  }
+
+  /* ---------- add-update form ---------- */
+  .fin-view details.add-panel{
+    background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);
+  }
+  .fin-view details.add-panel summary{
+    list-style:none;cursor:pointer;padding:14px 18px;display:flex;align-items:center;gap:10px;
+    font-weight:700;font-size:14px;color:var(--warn);
+  }
+  .fin-view details.add-panel summary::-webkit-details-marker{display:none;}
+  .fin-view details.add-panel summary .chev{transition:transform .15s ease;font-size:11px;color:var(--muted);}
+  .fin-view details.add-panel[open] summary .chev{transform:rotate(90deg);}
+  .fin-view .panel-body{padding:4px 18px 20px;border-top:1px solid var(--border);}
+  .fin-view .field-row{display:flex;gap:14px;flex-wrap:wrap;margin:14px 0;}
+  .fin-view .field{display:flex;flex-direction:column;gap:5px;min-width:150px;}
+  .fin-view .field label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;}
+  .fin-view .field input[type=date], .fin-view .field input[type=number]{
+    font-family:"IBM Plex Mono",monospace;font-size:13px;padding:8px 10px;border:1px solid var(--border);
+    border-radius:6px;background:var(--surface-2);color:var(--ink);width:170px;
+  }
+  .fin-view .field input:focus{outline:2px solid var(--warn);outline-offset:1px;}
+  .fin-view .toggle-row{display:flex;align-items:center;gap:8px;margin:16px 0 6px;font-size:13px;font-weight:600;}
+  .fin-view .toggle-row input{width:16px;height:16px;}
+  .fin-view .state-grid{
+    display:grid;grid-template-columns:64px 1fr 1fr;gap:8px 10px;align-items:center;margin-top:10px;
+    max-height:340px;overflow-y:auto;padding-right:6px;
+  }
+  .fin-view .state-grid .gh{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;}
+  .fin-view .state-grid input{
+    font-family:"IBM Plex Mono",monospace;font-size:12.5px;padding:6px 8px;border:1px solid var(--border);
+    border-radius:5px;background:var(--surface-2);color:var(--ink);width:100%;
+  }
+  .fin-view .state-grid .st-code{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:12.5px;color:var(--ink-soft);}
+  .fin-view .save-btn{
+    margin-top:16px;background:var(--warn);color:#241804;border:none;padding:10px 20px;border-radius:7px;
+    font-weight:700;font-size:13.5px;cursor:pointer;font-family:"Public Sans",sans-serif;
+  }
+  .fin-view .save-btn:hover{filter:brightness(1.06);}
+  .fin-view .save-btn:disabled{opacity:.5;cursor:not-allowed;}
+  .fin-view .form-note{font-size:12px;color:var(--muted);margin-top:8px;}
+  .fin-view .form-status{font-size:12.5px;margin-top:10px;font-weight:600;}
+  .fin-view .form-status.ok{color:var(--good);}
+  .fin-view .form-status.err{color:var(--critical);}
+  .fin-view .db-offline-note{
+    padding:16px 18px;font-size:13px;color:var(--muted);
+  }
+
+  /* ---------- history ---------- */
+  .fin-view .history-list{font-size:12.5px;color:var(--ink-soft);}
+  .fin-view .history-row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);}
+  .fin-view .history-row:last-child{border-bottom:none;}
+  .fin-view .history-tags span{
+    font-size:10px;text-transform:uppercase;letter-spacing:.04em;font-weight:700;padding:2px 6px;border-radius:4px;
+    margin-left:6px;background:var(--surface-2);color:var(--muted);
+  }
+
+  /* ---------------- rolling 4-week grids ---------------- */
+  .fin-view .week-card{margin-bottom:20px;}
+  .fin-view .week-card:last-child{margin-bottom:0;}
+  .fin-view .week-card-head{padding:14px 18px 0;}
+  .fin-view .week-card-title{font-family:"Zilla Slab", Georgia, serif;font-weight:600;font-size:14.5px;margin:0;color:var(--ink);}
+  .fin-view table.week-grid{min-width:560px;}
+  .fin-view table.week-grid td.row-label{font-family:"Public Sans",sans-serif;font-weight:600;color:var(--ink);}
+  .fin-view table.week-grid tr.total-row td{
+    font-weight:700;border-top:1.5px solid var(--tbl-total-border);background:var(--tbl-total-bg);color:var(--ink);
+  }
+  .fin-view table.week-grid td.wow-pos{color:var(--good);font-weight:700;}
+  .fin-view table.week-grid td.wow-neg{color:var(--critical);font-weight:700;}
+  .fin-view table.week-grid td.wow-flat{color:var(--muted);}
+  .fin-view table.week-grid .empty-cell{padding:16px 18px;color:var(--muted);font-style:italic;border:none;font-family:"Public Sans",sans-serif;text-align:left;}
+  .fin-view table.week-grid tr.group-row td{
+    background:var(--tbl-group-bg); color:var(--tbl-group-ink); font-weight:700;
+    border-bottom:1px solid var(--border);
+  }
+  .fin-view table.week-grid tr.group-row td.row-label{
+    color:var(--tbl-group-ink); font-weight:700; text-transform:uppercase; font-size:11.5px; letter-spacing:.03em;
+  }
+
+  .fin-view footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--border);font-size:11.5px;color:var(--muted);}
+
+  /* Finance view: nested inside the app's own #content padding, so drop the standalone page chrome */
+  .fin-view .wrap{ max-width:none; margin:0; padding:0; }
+  :root{ --fin-series-cash:#2C5C60; --fin-series-ar:#B14B4B; --fin-series-ap:#3E7D52; }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){ --fin-series-cash:#5FA3A4; --fin-series-ar:#E08585; --fin-series-ap:#74C08A; }
+  }
+  :root[data-theme="dark"]{ --fin-series-cash:#5FA3A4; --fin-series-ar:#E08585; --fin-series-ap:#74C08A; }
+
+  /* ---------------- Mobile Summary (condensed, phone-first finance view) ---------------- */
+  .fin-view.fin-mobile .m-wrap{ max-width:480px; margin:0 auto; padding:4px 0 56px; }
+  .fin-view.fin-mobile header.m-top{ padding-bottom:14px; border-bottom:2px solid var(--border); margin-bottom:22px; }
+  .fin-view.fin-mobile .m-h1{
+    font-family:"Zilla Slab", Georgia, serif; font-weight:600; font-size:24px; margin:5px 0 8px; letter-spacing:-.01em;
+  }
+  .fin-view.fin-mobile .m-asof{ font-size:13px; color:var(--ink-soft); }
+  .fin-view.fin-mobile .m-asof strong{ font-family:"IBM Plex Mono",monospace; color:var(--ink); }
+  .fin-view.fin-mobile section{ margin-bottom:28px; }
+  .fin-view.fin-mobile .m-section-title{ font-size:16px; margin-bottom:12px; }
+  .fin-view.fin-mobile .m-kpi-grid{ grid-template-columns:1fr 1fr; border-radius:10px; overflow:hidden; }
+  .fin-view.fin-mobile .m-kpi-grid .kpi-tile{ padding:13px 13px 12px; min-height:92px; }
+  .fin-view.fin-mobile .m-kpi-grid .kpi-value{ font-size:19px; }
+  .fin-view.fin-mobile .m-kpi-grid .kpi-label{ font-size:10px; }
+  .fin-view.fin-mobile .m-kpi-grid .delta-pill{ font-size:11px; }
+  .fin-view.fin-mobile .m-kpi-grid .delta-caption{ font-size:9.5px; }
+  .fin-view.fin-mobile .m-table-card{ border-radius:10px; }
+  .fin-view.fin-mobile table.m-table{ min-width:0; width:100%; font-size:13px; }
+  .fin-view.fin-mobile table.m-table th, .fin-view.fin-mobile table.m-table td{ padding:9px 12px; }
+  .fin-view.fin-mobile table.m-table th:first-child, .fin-view.fin-mobile table.m-table td:first-child{
+    position:sticky; left:0; background:var(--surface); z-index:1; box-shadow:1px 0 0 var(--border); text-align:left;
+  }
+  .fin-view.fin-mobile table.m-table thead th:first-child{ background:var(--tbl-head-bg); }
+  .fin-view.fin-mobile table.m-table tr.total-row td:first-child{ background:var(--tbl-total-bg); }
+  .fin-view.fin-mobile table.m-table tr.group-row td:first-child{ background:var(--tbl-group-bg); }
+  .fin-view.fin-mobile .m-footer{ margin-top:32px; padding-top:14px; border-top:1px solid var(--border); font-size:11px; color:var(--muted); }
+  @media (max-width:400px){
+    .fin-view.fin-mobile .m-kpi-grid{ grid-template-columns:1fr; }
+  }
+
+  /* ---------------- Banking dashboard ---------------- */
+  .fin-view .bank-hero{
+    background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow);
+    padding:22px 24px; display:flex; flex-direction:column; gap:8px;
+  }
+  .fin-view .bank-hero-label{ font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:600; }
+  .fin-view .bank-hero-value{ font-family:"IBM Plex Mono",monospace; font-size:34px; font-weight:700; letter-spacing:-.01em; }
+  .fin-view .bank-hero-empty{ color:var(--muted); font-size:13px; font-style:italic; }
+  .fin-view table.bank-table th:nth-child(2), .fin-view table.bank-table td:nth-child(2){ color:var(--muted); }
+  .fin-view table.bank-table td.state-cell{ font-family:"Public Sans",sans-serif; font-weight:600; color:var(--ink); }
+
+
+  /* ===== Finance tab: ported from the Workforce Ledger finance view ===== */
+  .fin-view{
+    --ink:var(--text-primary); --ink-soft:var(--text-secondary); --paper:var(--page); --surface:var(--surface-1);
+    --good-soft:var(--good-bg); --critical-soft:var(--critical-bg); --warn:var(--warning-fg); --warn-soft:var(--warning-bg);
+    --accent:var(--series-1); --accent-soft:#E3EEEE;
+    --tbl-group-bg:#E7EDFB; --tbl-group-ink:#0f2744; --tbl-total-bg:#E9ECF2; --tbl-total-border:#0f2744;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .fin-view{ --accent-soft:#1E3336; --tbl-group-bg:#1C2A42; --tbl-group-ink:#B9C7EA; --tbl-total-bg:#1B222C; --tbl-total-border:#5FA3A4; }
+  }
+  :root[data-theme="dark"] .fin-view{ --accent-soft:#1E3336; --tbl-group-bg:#1C2A42; --tbl-group-ink:#B9C7EA; --tbl-total-bg:#1B222C; --tbl-total-border:#5FA3A4; }
+  /* neutralize the site's own generic classes where the ported view reuses the same names */
+  .fin-view .kpi-grid{ margin-bottom:0; }
+  .fin-view .kpi-grid-top{ border-radius:10px 10px 0 0; }
+  .fin-view #hcTrendCard{ max-width:420px; }
 </style>
 </head>
 <body>
@@ -562,114 +880,9 @@
         </div>
 
         <div class="view" id="view-finance" hidden>
-          <div class="stale-banner" id="stale-banner">Showing the most recent snapshot on file — dated <span id="stale-date"></span>.</div>
-
           <div class="loading-row" id="loading-row"><span class="spinner"></span>Loading finance data…</div>
           <div class="login-msg err" id="data-err" style="display:none; margin-bottom:16px;"></div>
-
-          <div id="data-view" hidden>
-            <div class="kpi-grid" id="kpi-grid"></div>
-
-            <div class="panel-row" style="grid-template-columns:1fr;">
-              <section class="panel">
-                <div class="panel-head">
-                  <div>
-                    <div class="panel-title">Biggest gross-profit movers by location</div>
-                    <div class="panel-sub" id="movers-sub"></div>
-                  </div>
-                </div>
-                <div class="movers-row" id="movers-wrap"></div>
-              </section>
-            </div>
-
-            <div class="panel-row" style="grid-template-columns:1fr;">
-              <section class="panel">
-                <div class="panel-head">
-                  <div>
-                    <div class="panel-title">Cash, receivables &amp; payables</div>
-                    <div class="panel-sub" id="cash-trend-sub"></div>
-                  </div>
-                </div>
-                <div class="trend-row" id="cash-trend-row"></div>
-              </section>
-            </div>
-
-            <div class="panel-row" style="grid-template-columns:1fr;">
-              <section class="panel">
-                <div class="panel-head">
-                  <div>
-                    <div class="panel-title">Sales, cost of sales &amp; margin by location</div>
-                    <div class="panel-sub" id="loc-sub">Latest week &middot; click a state to see its offices</div>
-                  </div>
-                </div>
-                <div class="table-scroll">
-                  <table class="loc" id="loc-table">
-                    <thead>
-                      <tr><th>Location</th><th>Sales</th><th>Cost of sales</th><th>Gross profit</th><th>Margin</th><th>Headcount</th><th>GP / employee</th></tr>
-                    </thead>
-                    <tbody id="loc-body"></tbody>
-                    <tfoot id="loc-foot"></tfoot>
-                  </table>
-                </div>
-              </section>
-            </div>
-
-            <div class="panel-row" style="grid-template-columns:1fr;">
-              <section class="panel">
-                <div class="panel-head">
-                  <div>
-                    <div class="panel-title">Workforce headcount by location</div>
-                    <div class="panel-sub" id="hc-as-of"></div>
-                  </div>
-                </div>
-                <div class="trend-card" id="hc-trend-card" style="margin-bottom:16px;"></div>
-                <div class="panel-block-title" style="font-size:13.5px;">Biggest headcount changes</div>
-                <div class="panel-sub" id="hc-movers-sub"></div>
-                <div class="movers-row" id="hc-movers-wrap"></div>
-              </section>
-            </div>
-
-            <div class="panel-row" style="grid-template-columns:1fr;">
-              <section class="panel">
-                <div class="panel-head">
-                  <div>
-                    <div class="panel-title">Workforce snapshot</div>
-                    <div class="panel-sub">Latest week</div>
-                  </div>
-                </div>
-                <div class="stat-strip" id="headcount-stats"></div>
-              </section>
-            </div>
-
-            <div class="panel-row" style="grid-template-columns:1fr;">
-              <section class="panel">
-                <div class="panel-head">
-                  <div>
-                    <div class="panel-title">Trailing 4 weeks</div>
-                    <div class="panel-sub">Company-wide P&amp;L, cash position, and headcount by customer &amp; manager</div>
-                  </div>
-                </div>
-                <div class="week-grids">
-                  <div class="panel-block">
-                    <div class="panel-block-title">Gross sales, cost of sales &amp; gross margin</div>
-                    <div class="table-scroll"><table class="week-grid" id="wk-pl-table"></table></div>
-                  </div>
-                  <div class="panel-block">
-                    <div class="panel-block-title">Cash, AR &amp; AP</div>
-                    <div class="table-scroll"><table class="week-grid" id="wk-cash-table"></table></div>
-                  </div>
-                  <div class="panel-block">
-                    <div class="panel-block-title">Headcount by customer</div>
-                    <div class="table-scroll"><table class="week-grid" id="wk-cust-table"></table></div>
-                  </div>
-                  <div class="panel-block">
-                    <div class="panel-block-title">Headcount by manager</div>
-                    <div class="table-scroll"><table class="week-grid" id="wk-mgr-table"></table></div>
-                  </div>
-                </div>
-              </section>
-            </div>
-          </div>
+          <div id="fin-host"></div>
         </div>
 
         <div class="view" id="view-customers" hidden>
@@ -1183,6 +1396,1156 @@
 (function(){
   "use strict";
 
+  var FIN_HTML = "<div class=\"fin-view\"><div class=\"wrap\">\n  <div class=\"week-picker-bar\">\n    <label for=\"weekSelect\" class=\"week-picker-label\">Showing week</label>\n    <select id=\"weekSelect\"></select>\n  </div>\n  <div class=\"week-picker-note\" id=\"weekPickerNote\" style=\"display:none;\"></div>\n\n  <header class=\"top\">\n    <div>\n      <p class=\"brand-eyebrow\">Workforce Strategies LLC &middot; Operations Ledger</p>\n      <h1>Sales, Margin &amp; Cash Tracker</h1>\n    </div>\n    <div class=\"top-meta\">\n      P&amp;L snapshot <br><strong class=\"as-of-date\" id=\"plAsOf\">\u2014</strong><br>\n      <span id=\"snapCount\"></span>\n    </div>\n  </header>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Company at a glance</h2>\n      <span class=\"section-sub\">Change vs. the most recent prior update on file</span>\n    </div>\n    <div class=\"kpi-grid kpi-grid-4 kpi-grid-top\" id=\"kpiGridPL\"></div>\n    <div class=\"kpi-grid kpi-grid-4 kpi-grid-bottom\" id=\"kpiGridCash\" style=\"margin-top:1px;\"></div>\n  </section>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Biggest gross-profit movers by location</h2>\n      <span class=\"section-sub\" id=\"moversSub\"></span>\n    </div>\n    <div id=\"moversWrap\"></div>\n  </section>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Sales, cost of sales &amp; margin by location</h2>\n      <span class=\"section-sub\" id=\"locAsOf\"></span>\n    </div>\n    <div class=\"table-card\">\n      <div class=\"scroll-x\">\n        <table class=\"loc\">\n          <thead>\n            <tr>\n              <th>Location</th>\n              <th>Sales</th>\n              <th>Cost of Sales</th>\n              <th>Gross Profit</th>\n              <th>Margin</th>\n              <th>Headcount</th>\n              <th>GP / Employee</th>\n            </tr>\n          </thead>\n          <tbody id=\"locBody\"></tbody>\n          <tfoot id=\"locFoot\"></tfoot>\n        </table>\n      </div>\n    </div>\n    <div class=\"form-note\" style=\"margin-top:8px;\">Click a location to see its client sites, sourced from the companies cheat sheet.</div>\n\n    <div class=\"table-card week-card\" style=\"margin-top:20px;\">\n      <div class=\"week-card-head\"><h3 class=\"week-card-title\">Gross sales, cost of sales &amp; gross margin \u2014 last 4 weeks</h3></div>\n      <div class=\"scroll-x\"><table class=\"loc week-grid\" id=\"wkPLTable\"></table></div>\n    </div>\n  </section>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Cash, receivables &amp; payables</h2>\n      <span class=\"section-sub\" id=\"cashAsOf\"></span>\n    </div>\n    <div class=\"trend-row\" id=\"trendRow\"></div>\n\n    <div class=\"table-card week-card\" style=\"margin-top:20px;\">\n      <div class=\"week-card-head\"><h3 class=\"week-card-title\">Cash, AR &amp; AP \u2014 last 4 weeks</h3></div>\n      <div class=\"scroll-x\"><table class=\"loc week-grid\" id=\"wkCashTable\"></table></div>\n    </div>\n  </section>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Workforce headcount by location</h2>\n      <span class=\"section-sub\" id=\"hcAsOf\"></span>\n    </div>\n    <div class=\"trend-card\" style=\"margin-bottom:14px;\" id=\"hcTrendCard\"></div>\n    <div class=\"section-head\" style=\"margin-top:0;\">\n      <h3 class=\"section-title\" style=\"font-size:15px;\">Biggest headcount changes</h3>\n      <span class=\"section-sub\" id=\"hcMoversSub\"></span>\n    </div>\n    <div id=\"hcMoversWrap\" style=\"margin-bottom:14px;\"></div>\n\n    <div class=\"table-card week-card\" style=\"margin-top:20px;\">\n      <div class=\"week-card-head\"><h3 class=\"week-card-title\">Headcount by customer \u2014 last 4 weeks</h3></div>\n      <div class=\"scroll-x\"><table class=\"loc week-grid\" id=\"wkCustTable\"></table></div>\n      <div class=\"form-note\" style=\"margin:0 18px 14px;\">Customer names come straight from the payroll source (Probuild rolls up to Builders First Source; Rollin Coal rolls up to All Truss).</div>\n    </div>\n\n    <div class=\"table-card week-card\">\n      <div class=\"week-card-head\"><h3 class=\"week-card-title\">Headcount by manager \u2014 last 4 weeks</h3></div>\n      <div class=\"scroll-x\"><table class=\"loc week-grid\" id=\"wkMgrTable\"></table></div>\n      <div class=\"form-note\" style=\"margin:0 18px 14px;\">Dynamic Capacity Staffing LLC sites roll up to Cach Labor; every other site rolls up to Workforce Strategies.</div>\n    </div>\n  </section>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Add an update</h2>\n      <span class=\"section-sub\">Weekly for cash/AR/AP/headcount &middot; each period for P&amp;L by location</span>\n    </div>\n    <div id=\"formHost\"></div>\n  </section>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Snapshot history</h2>\n    </div>\n    <div class=\"table-card\" style=\"padding:14px 18px;\">\n      <div class=\"history-list\" id=\"historyList\"></div>\n    </div>\n  </section>\n\n  <footer>\n    Figures sourced from Workforce Strategies LLC P&amp;L by Class and Balance Sheet exports (accrual basis). Location codes reflect QuickBooks class/office assignments.\n  </footer>\n</div></div>\n";
+
+  var MOBILE_HTML = "<div class=\"fin-view fin-mobile\"><div class=\"wrap m-wrap\">\n  <header class=\"m-top\">\n    <p class=\"brand-eyebrow\">Workforce Strategies LLC</p>\n    <h1 class=\"m-h1\">Finance Summary</h1>\n    <div class=\"m-asof\">As of <strong id=\"mAsOf\">—</strong></div>\n  </header>\n\n  <section>\n    <h2 class=\"section-title m-section-title\">Company at a glance</h2>\n    <div class=\"kpi-grid m-kpi-grid\" id=\"mKpiGrid\"></div>\n  </section>\n\n  <section>\n    <h2 class=\"section-title m-section-title\">Gross sales, cost of sales &amp; margin — last 4 weeks</h2>\n    <div class=\"table-card m-table-card\">\n      <div class=\"scroll-x\"><table class=\"loc week-grid m-table\" id=\"mWkPLTable\"></table></div>\n    </div>\n  </section>\n\n  <section>\n    <h2 class=\"section-title m-section-title\">Headcount by customer — last 4 weeks</h2>\n    <div class=\"table-card m-table-card\">\n      <div class=\"scroll-x\"><table class=\"loc week-grid m-table\" id=\"mWkCustTable\"></table></div>\n    </div>\n    <div class=\"form-note\" style=\"margin-top:8px;\">Tap the arrow next to a customer to see the sites rolled up under it.</div>\n  </section>\n\n  <footer class=\"m-footer\">Figures sourced from P&amp;L by Class and payroll exports (accrual basis).</footer>\n</div></div>\n";
+
+  var BANKING_HTML = "<div class=\"fin-view fin-banking\"><div class=\"wrap\">\n  <header class=\"top\">\n    <div>\n      <p class=\"brand-eyebrow\">Workforce Strategies LLC · Operations Ledger</p>\n      <h1>Bank Accounts</h1>\n    </div>\n    <div class=\"top-meta\">\n      Balance sheet snapshot <br><strong class=\"as-of-date\" id=\"bankAsOf\">—</strong><br>\n      <span id=\"bankAcctCount\"></span>\n    </div>\n  </header>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Total cash on hand</h2>\n      <span class=\"section-sub\">Change vs. the most recent prior balance-sheet update on file</span>\n    </div>\n    <div class=\"bank-hero\" id=\"bankTotalTile\"></div>\n  </section>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Balance by account</h2>\n      <span class=\"section-sub\" id=\"bankTableAsOf\"></span>\n    </div>\n    <div class=\"table-card\">\n      <div class=\"scroll-x\">\n        <table class=\"loc bank-table\">\n          <thead>\n            <tr>\n              <th>Account</th>\n              <th>Code</th>\n              <th>Balance</th>\n              <th>Change</th>\n            </tr>\n          </thead>\n          <tbody id=\"bankBody\"></tbody>\n          <tfoot id=\"bankFoot\"></tfoot>\n        </table>\n      </div>\n    </div>\n  </section>\n\n  <footer>\n    Figures sourced from the Workforce Strategies LLC Balance Sheet export (accrual basis), Bank Accounts section. Updates whenever a new balance sheet is processed.\n  </footer>\n</div></div>\n";
+
+  var STATE_ORDER = ["NC","TN","AL","TX","PA","VA","GA","MI","IN","ME","AZ","SC","FL","DE"];
+
+  var SEED_SNAPSHOT = {};
+
+  var SITE_NAMES = {"10009":{"name":"84 Chalfont","company":"United Workforce LLC"},"10008":{"name":"84 KIngs Mountain","company":"United Workforce LLC"},"10015":{"name":"84 Coal Center","company":"United Workforce LLC"},"10010":{"name":"84 Statesville","company":"United Workforce LLC"},"10007":{"name":"84 Indiana","company":"Monarch Staffing LLC"},"10047":{"name":"84 Delaware","company":"Summit Strategies LLC"},"10012":{"name":"Comtech","company":"Southeast Workforce LLC"},"10052":{"name":"Rafters & Walls","company":"Summit Strategies LLC"},"10053":{"name":"McIntosh Box & Pallet","company":"Summit Strategies LLC"},"10000":{"name":"Alltruss","company":"Peak Staffing LLC"},"10001":{"name":"Rollin Coal","company":"Peak Staffing LLC"},"10028":{"name":"Aroostook","company":"Dynamic Capacity Staffing LLC"},"10026":{"name":"Bonnell Georgia","company":"Dynamic Capacity Staffing LLC"},"10020":{"name":"Bonnell Indiana","company":"Dynamic Capacity Staffing LLC"},"10022":{"name":"Bonnell Michigan","company":"Dynamic Capacity Staffing LLC"},"10019":{"name":"Bonnell Tennessee","company":"Dynamic Capacity Staffing LLC"},"10014":{"name":"Christmas Lumber","company":"Dynamic Capacity Staffing LLC"},"10023":{"name":"Fay Block","company":"Dynamic Capacity Staffing LLC"},"10035":{"name":"Key Manufacturing","company":"Dynamic Capacity Staffing LLC"},"10030":{"name":"Live Oaks Broxton","company":"Dynamic Capacity Staffing LLC"},"10029":{"name":"Live Oaks Waycross","company":"Dynamic Capacity Staffing LLC"},"10038":{"name":"Live Oaks WIllacoochie","company":"Dynamic Capacity Staffing LLC"},"10039":{"name":"Mobile","company":"Dynamic Capacity Staffing LLC"},"10032":{"name":"Mueller Refrigeration","company":"Dynamic Capacity Staffing LLC"},"10016":{"name":"Tower Hensley","company":"Dynamic Capacity Staffing LLC"},"10017":{"name":"Tower Martinez","company":"Dynamic Capacity Staffing LLC"},"10018":{"name":"Tower Olney","company":"Dynamic Capacity Staffing LLC"},"10027":{"name":"Townsend","company":"Dynamic Capacity Staffing LLC"},"10044":{"name":"Arizona Building Supply","company":"Dynamic Capacity Staffing LLC"},"10046":{"name":"Novotny","company":"Dynamic Capacity Staffing LLC"},"10037":{"name":"Timber Creek","company":"Dynamic Capacity Staffing LLC"},"10024":{"name":"Witt","company":"Dynamic Capacity Staffing LLC"},"10050":{"name":"Apex","company":"Dynamic Capacity Staffing LLC"},"10051":{"name":"Hitek Truss","company":"Dynamic Capacity Staffing LLC"},"10056":{"name":"Magic Coil Products LLC","company":"Dynamic Capacity Staffing LLC"},"10054":{"name":"True House Jacksonville","company":"Dynamic Capacity Staffing LLC"},"10062":{"name":"Midland Truss","company":"Dynamic Capacity Staffing LLC"},"10002":{"name":"Probuild","company":"Southeast Workforce Solutions LLC"},"10013":{"name":"BFS-Harrisburg","company":"Southeast Workforce Solutions LLC"},"10059":{"name":"BFS-Apex","company":"Southeast Workforce Solutions LLC"},"10058":{"name":"BFS-Cowpens","company":"Southeast Workforce Solutions LLC"},"10060":{"name":"BFS-Middlesex","company":"Southeast Workforce Solutions LLC"},"10061":{"name":"BFS-Spartanburg","company":"Southeast Workforce Solutions LLC"},"10011":{"name":"84 Virginia","company":"Delta Staffing LLC"}};
+
+  var HEADCOUNT_HISTORY = [];
+
+  var snapshots = [];
+  var dbHandle = null;
+  var dbReady = false;
+  var custCache = [];
+
+  // Headcount-by-customer and headcount-by-manager now come straight from the
+  // payroll source's own Customer/Company fields (see headcount.customers /
+  // headcount.managers on each snapshot) rather than being inferred from office codes.
+
+  /* ---------------- helpers ---------------- */
+  function fmtUSD(n){
+    if (n === null || n === undefined || isNaN(n)) return "—";
+    var neg = n < 0, abs = Math.abs(n);
+    return (neg ? "-$" : "$") + Math.round(abs).toLocaleString("en-US");
+  }
+  function fmtCompactUSD(n){
+    if (n === null || n === undefined || isNaN(n)) return "—";
+    var neg = n < 0, abs = Math.abs(n);
+    var out;
+    if (abs >= 1000000) out = "$" + (abs/1000000).toFixed(2).replace(/0$/,"").replace(/\.$/,"") + "M";
+    else if (abs >= 1000) out = "$" + Math.round(abs/1000) + "K";
+    else out = "$" + Math.round(abs);
+    return (neg ? "-" : "") + out;
+  }
+  function fmtPct(n, d){
+    if (n === null || n === undefined || isNaN(n)) return "—";
+    d = d === undefined ? 1 : d;
+    return (n > 0 ? "+" : "") + n.toFixed(d) + "%";
+  }
+  function fmtPts(n, d){
+    if (n === null || n === undefined || isNaN(n)) return "—";
+    d = d === undefined ? 1 : d;
+    return (n > 0 ? "+" : "") + n.toFixed(d) + " pt";
+  }
+  function fmtDate(s){
+    if (!s) return "—";
+    var d = new Date(s + "T00:00:00Z");
+    return d.toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric", timeZone:"UTC" });
+  }
+  function fmtWeekCol(s){
+    if (!s) return "—";
+    var d = new Date(s + "T00:00:00Z");
+    return d.toLocaleDateString("en-US", { month:"short", day:"numeric", timeZone:"UTC" });
+  }
+  function daysBetween(a, b){
+    return Math.round((new Date(b+"T00:00:00Z") - new Date(a+"T00:00:00Z")) / 86400000);
+  }
+  function periodLabel(days){
+    if (days === null) return "";
+    if (days <= 2) return "day over day";
+    if (days <= 10) return "week over week";
+    if (days <= 45) return "month over month";
+    return "vs. " + days + " days prior";
+  }
+  function margin(sales, cogs){
+    if (!sales) return null;
+    return ((sales - cogs) / sales) * 100;
+  }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  function deltaPillHTML(curr, prev, opts){
+    opts = opts || {};
+    if (curr === null || curr === undefined || prev === null || prev === undefined) return "";
+    var diff = curr - prev;
+    var pct = (opts.isPoint) ? null : (prev !== 0 ? (diff / Math.abs(prev)) * 100 : null);
+    var dir = diff > 0.0001 ? "up" : diff < -0.0001 ? "down" : "flat";
+    var cls = dir;
+    if (opts.invert){ cls = dir === "up" ? "down" : dir === "down" ? "up" : "flat"; }
+    if (opts.neutral) cls = "flat";
+    var arrow = dir === "up" ? "▲" : dir === "down" ? "▼" : "•";
+    var main = opts.isPoint ? fmtPts(diff) : opts.isCount ? ((diff>0?"+":"") + Math.round(diff).toLocaleString("en-US")) : fmtUSD(diff);
+    var pctTxt = (pct !== null) ? " (" + fmtPct(pct) + ")" : "";
+    return '<span class="delta-pill ' + cls + '"><span class="arrow">' + arrow + '</span>' + main + pctTxt + '</span>';
+  }
+
+  /* ---------------- derived view ---------------- */
+  function computeView(snaps, asOf){
+    function dateOk(s){ return !asOf || s.date <= asOf; }
+    var withPL = snaps.filter(function(s){ return s.company && dateOk(s); })
+      .slice().sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+    var withCash = snaps.filter(function(s){ return s.cash !== null && s.cash !== undefined && dateOk(s); })
+      .slice().sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+    var withHC = snaps.filter(function(s){ return s.headcount && dateOk(s); })
+      .slice().sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+    var latestPL = withPL.length ? withPL[withPL.length-1] : null;
+    var prevPL = withPL.length > 1 ? withPL[withPL.length-2] : null;
+    var latestCash = withCash.length ? withCash[withCash.length-1] : null;
+    var prevCash = withCash.length > 1 ? withCash[withCash.length-2] : null;
+    var latestHC = withHC.length ? withHC[withHC.length-1] : null;
+    var prevHC = withHC.length > 1 ? withHC[withHC.length-2] : null;
+
+    function nearestHC(dateStr, toleranceDays){
+      if (!withHC.length || !dateStr) return null;
+      var best = null, bestDiff = Infinity;
+      withHC.forEach(function(s){
+        var diff = Math.abs(daysBetween(s.date, dateStr));
+        if (diff < bestDiff){ bestDiff = diff; best = s; }
+      });
+      if (toleranceDays !== undefined && bestDiff > toleranceDays) return null;
+      return best;
+    }
+
+    return { withPL:withPL, withCash:withCash, withHC:withHC, latestPL:latestPL, prevPL:prevPL,
+      latestCash:latestCash, prevCash:prevCash, latestHC:latestHC, prevHC:prevHC, nearestHC:nearestHC };
+  }
+
+  /* ---------------- render: KPIs ---------------- */
+  function computeKPITiles(v){
+    var plLabel = v.prevPL ? periodLabel(daysBetween(v.prevPL.date, v.latestPL.date)) : null;
+    var cashLabel = v.prevCash ? periodLabel(daysBetween(v.prevCash.date, v.latestCash.date)) : null;
+    var hcLabel = v.prevHC ? periodLabel(daysBetween(v.prevHC.date, v.latestHC.date)) : null;
+
+    var curSales = v.latestPL ? v.latestPL.company.sales : null;
+    var curCogs = v.latestPL ? v.latestPL.company.cogs : null;
+    var curGP = (curSales !== null && curCogs !== null) ? curSales - curCogs : null;
+    var curMargin = margin(curSales, curCogs);
+
+    var prevSales = v.prevPL ? v.prevPL.company.sales : null;
+    var prevCogs = v.prevPL ? v.prevPL.company.cogs : null;
+    var prevGP = (prevSales !== null && prevCogs !== null) ? prevSales - prevCogs : null;
+    var prevMargin = margin(prevSales, prevCogs);
+
+    var plTiles = [
+      { label:"Sales", value: fmtUSD(curSales), cur:curSales, prev:prevSales, label2:plLabel },
+      { label:"Cost of Sales", value: fmtUSD(curCogs), cur:curCogs, prev:prevCogs, label2:plLabel, invert:true },
+      { label:"Gross Profit", value: fmtUSD(curGP), cur:curGP, prev:prevGP, label2:plLabel },
+      { label:"Gross Margin", value: (curMargin===null?"—":curMargin.toFixed(1)+"%"), cur:curMargin, prev:prevMargin, label2:plLabel, isPoint:true }
+    ];
+    var cashTiles = [
+      { label:"Cash", value: fmtUSD(v.latestCash ? v.latestCash.cash : null), cur:v.latestCash?v.latestCash.cash:null, prev:v.prevCash?v.prevCash.cash:null, label2:cashLabel },
+      { label:"Accounts Receivable", value: fmtUSD(v.latestCash ? v.latestCash.ar : null), cur:v.latestCash?v.latestCash.ar:null, prev:v.prevCash?v.prevCash.ar:null, label2:cashLabel, neutral:true },
+      { label:"Accounts Payable", value: fmtUSD(v.latestCash ? v.latestCash.ap : null), cur:v.latestCash?v.latestCash.ap:null, prev:v.prevCash?v.prevCash.ap:null, label2:cashLabel, neutral:true },
+      { label:"Headcount", value: (v.latestHC ? v.latestHC.headcount.total.toLocaleString("en-US") : "—"), cur:v.latestHC?v.latestHC.headcount.total:null, prev:v.prevHC?v.prevHC.headcount.total:null, label2:hcLabel, neutral:true, isCount:true }
+    ];
+
+    return { plTiles:plTiles, cashTiles:cashTiles };
+  }
+
+  function tileHTML(t){
+    var deltaHtml = deltaPillHTML(t.cur, t.prev, { invert:t.invert, isPoint:t.isPoint, neutral:t.neutral, isCount:t.isCount });
+    var body = deltaHtml
+      ? '<div class="kpi-deltas">' + deltaHtml + '<span class="delta-caption">' + t.label2 + '</span></div>'
+      : '<div class="kpi-deltas"><span class="kpi-empty">First update on file</span></div>';
+    return '<div class="kpi-tile"><span class="kpi-label">' + t.label + '</span>' +
+      '<span class="kpi-value">' + t.value + '</span>' + body + '</div>';
+  }
+
+  function renderKPIs(v){
+    var tiles = computeKPITiles(v);
+    document.getElementById("kpiGridPL").innerHTML = tiles.plTiles.map(tileHTML).join("");
+    document.getElementById("kpiGridCash").innerHTML = tiles.cashTiles.map(tileHTML).join("");
+    document.getElementById("plAsOf").textContent = v.latestPL ? fmtDate(v.latestPL.date) : "—";
+    document.getElementById("snapCount").textContent = snapshots.length + (snapshots.length === 1 ? " snapshot recorded" : " snapshots recorded");
+  }
+
+  /* ---------------- render: mobile summary ---------------- */
+  function renderMobileKPIs(v){
+    var tiles = computeKPITiles(v);
+    var grid = document.getElementById("mKpiGrid");
+    if (grid) grid.innerHTML = tiles.plTiles.concat(tiles.cashTiles).map(tileHTML).join("");
+    var asOf = document.getElementById("mAsOf");
+    if (asOf) asOf.textContent = v.latestPL ? fmtDate(v.latestPL.date) : "—";
+  }
+
+  /* Office code -> {name, parent} built from live Customer records (parentCompany
+     groups multiple site/customer records under one umbrella for reporting). */
+  function customerOfficeMap(){
+    var map = {};
+    (custCache || []).forEach(function(c){
+      if (!c.officeCode) return;
+      var parts = String(c.officeCode).split(':');
+      var code = (parts.length > 1 ? parts[1] : parts[0]).trim();
+      if (!code) return;
+      if (!map[code]) map[code] = { name: c.name, parent: (c.parentCompany || '').trim() };
+    });
+    return map;
+  }
+
+  /* Shorter display names for a few long customer/parent-company labels, used only
+     in the rolling customer table so the Customer column stays narrow enough for
+     all 4 weeks to fit on a phone screen without scrolling. Underlying customer
+     records are unchanged -- this is a display-only substitution. */
+  var CUST_LABEL_SHORT = {
+    'Novotny Contracting Services': 'Novotny',
+    'Townsend Building Supply': 'Townsend',
+    'Frontier Solutions Group': 'FSG'
+  };
+  function shortCustLabel(s){ return CUST_LABEL_SHORT[s] || s; }
+
+  /* Group one week's headcount.offices[] into parent-customer buckets (keyed by
+     parentCompany, falling back to the customer's own name when it has none),
+     each carrying its underlying sub-customer (site) counts. */
+  function computeCustGroups(snap, officeMap){
+    var groups = {};
+    ((snap.headcount && snap.headcount.offices) || []).forEach(function(o){
+      var meta = officeMap[o.code];
+      var label = shortCustLabel(meta ? (meta.parent || meta.name) : ('Office ' + o.code));
+      var subName = meta ? meta.name : ('Office ' + o.code);
+      if (!groups[label]) groups[label] = { label:label, subs:{}, total:0 };
+      groups[label].subs[subName] = (groups[label].subs[subName] || 0) + o.count;
+      groups[label].total += o.count;
+    });
+    return groups;
+  }
+
+  /* Renders a rolling weekly customer table where each parent-customer row can
+     expand to reveal the sub-customers (sites) rolled up under it. */
+  function renderCustGroupTable(elId, cols, weekGroups, opts){
+    opts = opts || {};
+    var el = document.getElementById(elId);
+    var countFmt = opts.fmt || function(x){ return (typeof x === "number") ? x.toLocaleString("en-US") : "—"; };
+
+    var labelSeen = {}, labels = [];
+    weekGroups.forEach(function(g){
+      Object.keys(g).forEach(function(l){ if (!labelSeen[l]){ labelSeen[l] = true; labels.push(l); } });
+    });
+    if (!cols.length || !labels.length){
+      el.innerHTML = '<tbody><tr><td class="empty-cell">No weekly updates on file yet — add one below and it will appear here.</td></tr></tbody>';
+      return;
+    }
+    var lastGroups = weekGroups[weekGroups.length - 1] || {};
+    labels.sort(function(a,b){
+      var av = lastGroups[a] ? lastGroups[a].total : 0;
+      var bv = lastGroups[b] ? lastGroups[b].total : 0;
+      return bv - av;
+    });
+
+    var thead = '<thead><tr><th>Customer</th>' +
+      cols.map(function(c){ return '<th>' + escapeHtml(fmtWeekCol(c)) + '</th>'; }).join('') +
+      '<th>Total</th></tr></thead>';
+
+    var colSums = cols.map(function(){ return 0; });
+    var grandTotal = 0;
+    var bodyRows = '';
+    labels.forEach(function(label, idx){
+      var values = weekGroups.map(function(g){ return g[label] ? g[label].total : 0; });
+      var rowTotal = values.reduce(function(a,b){ return a + b; }, 0);
+      values.forEach(function(v,i){ colSums[i] += v; });
+      grandTotal += rowTotal;
+
+      var subSeen = {}, subNames = [];
+      weekGroups.forEach(function(g){
+        var grp = g[label];
+        if (grp) Object.keys(grp.subs).forEach(function(n){ if (!subSeen[n]){ subSeen[n] = true; subNames.push(n); } });
+      });
+      var lastGrp = lastGroups[label];
+      subNames.sort(function(a,b){
+        var av = (lastGrp && lastGrp.subs[a]) || 0;
+        var bv = (lastGrp && lastGrp.subs[b]) || 0;
+        return bv - av;
+      });
+      var hasSubs = subNames.length > 1;
+      var toggleBtn = hasSubs
+        ? '<button type="button" class="state-toggle" data-toggle-cust="g' + idx + '">▶</button>'
+        : '<button type="button" class="state-toggle" disabled>▶</button>';
+
+      bodyRows += '<tr class="group-row"><td class="row-label">' + toggleBtn + escapeHtml(label) + '</td>' +
+        values.map(function(v){ return '<td>' + countFmt(v) + '</td>'; }).join('') +
+        '<td>' + countFmt(rowTotal) + '</td></tr>';
+
+      if (hasSubs){
+        subNames.forEach(function(name){
+          var subValues = weekGroups.map(function(g){ return (g[label] && g[label].subs[name]) || 0; });
+          var subTotal = subValues.reduce(function(a,b){ return a + b; }, 0);
+          bodyRows += '<tr class="office-row cust-sub-of-g' + idx + '"><td class="office-name-cell">' + escapeHtml(name) + '</td>' +
+            subValues.map(function(v){ return '<td>' + countFmt(v) + '</td>'; }).join('') +
+            '<td>' + countFmt(subTotal) + '</td></tr>';
+        });
+      }
+    });
+
+    var footHtml = '<tr class="total-row"><td class="row-label">Total</td>' +
+      colSums.map(function(s){ return '<td>' + countFmt(s) + '</td>'; }).join('') +
+      '<td>' + countFmt(grandTotal) + '</td></tr>';
+
+    el.innerHTML = thead + '<tbody>' + bodyRows + footHtml + '</tbody>';
+
+    el.querySelectorAll('[data-toggle-cust]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var key = btn.getAttribute('data-toggle-cust');
+        var open = btn.classList.toggle('open');
+        el.querySelectorAll('.cust-sub-of-' + key).forEach(function(row){
+          row.classList.toggle('show', open);
+        });
+      });
+    });
+  }
+
+  function renderMobileRolling4Week(v){
+    var plWeeks = v.withPL.slice(-4);
+    var plCols = plWeeks.map(function(s){ return s.date; });
+    var pctFmt = function(x){ return (x===null||x===undefined) ? "—" : x.toFixed(1)+"%"; };
+    renderWeekTable("mWkPLTable", plCols, "Metric", [
+      { label:"Gross Sales", values: plWeeks.map(function(s){ return s.company.sales; }) },
+      { label:"Cost of Sales", values: plWeeks.map(function(s){ return s.company.cogs; }) },
+      { label:"Gross Margin ($)", values: plWeeks.map(function(s){ return s.company.sales - s.company.cogs; }) },
+      { label:"Gross Margin (%)", values: plWeeks.map(function(s){ return margin(s.company.sales, s.company.cogs); }), fmt:pctFmt }
+    ], { fmt:fmtUSD });
+
+    var hcWeeks = v.withHC.slice(-4);
+    var hcCols = hcWeeks.map(function(s){ return s.date; });
+    var countFmt = function(x){ return (typeof x === "number") ? x.toLocaleString("en-US") : "—"; };
+
+    var officeMap = customerOfficeMap();
+    if (Object.keys(officeMap).length){
+      var weekGroups = hcWeeks.map(function(s){ return computeCustGroups(s, officeMap); });
+      renderCustGroupTable("mWkCustTable", hcCols, weekGroups, { fmt:countFmt });
+    } else {
+      // Customer records not loaded yet (e.g. mock/offline db) — fall back to the
+      // flat parent-level counts already stored on the snapshot.
+      var custNames = [];
+      var custSeen = {};
+      hcWeeks.forEach(function(s){
+        (s.headcount.customers || []).forEach(function(c){
+          if (!custSeen[c.name]){ custSeen[c.name] = true; custNames.push(c.name); }
+        });
+      });
+      var custRows = custNames.map(function(name){
+        var values = hcWeeks.map(function(s){
+          var match = (s.headcount.customers || []).filter(function(c){ return c.name === name; });
+          return match.length ? match[0].count : 0;
+        });
+        return { label:name, values:values, fmt:countFmt };
+      }).filter(function(r){ return r.values.some(function(x){ return x > 0; }); })
+        .sort(function(a,b){ return b.values[b.values.length-1] - a.values[a.values.length-1]; });
+      renderWeekTable("mWkCustTable", hcCols, "Customer", custRows, { fmt:countFmt, totalCol:true, totalRow:true });
+    }
+  }
+
+  function renderMobileAll(){
+    var v = computeView(snapshots, null);
+    renderMobileKPIs(v);
+    renderMobileRolling4Week(v);
+  }
+
+  /* ---------------- render: banking ---------------- */
+  function computeBankingView(snaps){
+    var withBank = snaps.filter(function(s){ return s.bankAccounts && s.bankAccounts.length; })
+      .slice().sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+    return {
+      withBank: withBank,
+      latest: withBank.length ? withBank[withBank.length-1] : null,
+      prev: withBank.length > 1 ? withBank[withBank.length-2] : null
+    };
+  }
+
+  function renderBankingTotal(v){
+    var tile = document.getElementById("bankTotalTile");
+    if (!tile) return;
+    if (!v.latest){
+      tile.innerHTML = '<div class="bank-hero-empty">No balance-sheet account data on file yet — add a weekly update with a bank account breakdown and it will show up here.</div>';
+      return;
+    }
+    var curTotal = v.latest.bankAccounts.reduce(function(a,b){ return a + (b.balance||0); }, 0);
+    var prevTotal = v.prev ? v.prev.bankAccounts.reduce(function(a,b){ return a + (b.balance||0); }, 0) : null;
+    var label = v.prev ? periodLabel(daysBetween(v.prev.date, v.latest.date)) : null;
+    var deltaHtml = v.prev ? deltaPillHTML(curTotal, prevTotal, {}) : "";
+    tile.innerHTML =
+      '<span class="bank-hero-label">Total across ' + v.latest.bankAccounts.length + (v.latest.bankAccounts.length===1?' account':' accounts') + '</span>' +
+      '<span class="bank-hero-value">' + fmtUSD(curTotal) + '</span>' +
+      (deltaHtml
+        ? '<div class="kpi-deltas">' + deltaHtml + '<span class="delta-caption">' + label + '</span></div>'
+        : '<div class="kpi-deltas"><span class="kpi-empty">First update on file</span></div>');
+  }
+
+  function renderBankingTable(v){
+    var body = document.getElementById("bankBody");
+    var foot = document.getElementById("bankFoot");
+    var asOfEl = document.getElementById("bankAsOf");
+    var countEl = document.getElementById("bankAcctCount");
+    var tableAsOfEl = document.getElementById("bankTableAsOf");
+    if (asOfEl) asOfEl.textContent = v.latest ? fmtDate(v.latest.date) : "—";
+    if (countEl) countEl.textContent = v.latest ? (v.latest.bankAccounts.length + (v.latest.bankAccounts.length===1?" account on file":" accounts on file")) : "";
+    if (tableAsOfEl) tableAsOfEl.textContent = v.latest ? "As of " + fmtDate(v.latest.date) : "";
+    if (!v.latest){
+      body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);font-family:\'Public Sans\',sans-serif;">No bank account data yet.</td></tr>';
+      foot.innerHTML = "";
+      return;
+    }
+    var prevMap = {};
+    if (v.prev) v.prev.bankAccounts.forEach(function(a){ prevMap[a.code || a.name] = a.balance; });
+
+    var rows = v.latest.bankAccounts.slice().sort(function(a,b){ return (b.balance||0) - (a.balance||0); });
+    var total = 0;
+    body.innerHTML = rows.map(function(a){
+      total += (a.balance||0);
+      var key = a.code || a.name;
+      var hasPrev = v.prev && prevMap.hasOwnProperty(key);
+      var deltaCell = "—";
+      if (hasPrev){
+        var diff = a.balance - prevMap[key];
+        var cls = diff > 0.0001 ? "wow-pos" : diff < -0.0001 ? "wow-neg" : "wow-flat";
+        deltaCell = '<span class="' + cls + '">' + fmtUSDSigned(diff) + '</span>';
+      }
+      return '<tr><td class="state-cell">' + escapeHtml(a.name) + '</td>' +
+        '<td>' + escapeHtml(a.code||"") + '</td>' +
+        '<td>' + fmtUSD(a.balance) + '</td>' +
+        '<td>' + deltaCell + '</td></tr>';
+    }).join("");
+    foot.innerHTML = '<tr class="total-row"><td class="state-cell">Total</td><td></td><td>' + fmtUSD(total) + '</td><td></td></tr>';
+  }
+
+  function renderBankingAll(){
+    var v = computeBankingView(snapshots);
+    renderBankingTotal(v);
+    renderBankingTable(v);
+  }
+
+  /* ---------------- render: movers ---------------- */
+  function renderMovers(v){
+    var sub = document.getElementById("moversSub");
+    var wrap = document.getElementById("moversWrap");
+    if (!v.prevPL || !v.latestPL){
+      sub.textContent = "";
+      wrap.innerHTML = '<div class="empty-note">Add a second P&amp;L-by-location update below and the largest gross-profit swings by state will show up here automatically.</div>';
+      return;
+    }
+    var days = daysBetween(v.prevPL.date, v.latestPL.date);
+    sub.textContent = fmtDate(v.prevPL.date) + " → " + fmtDate(v.latestPL.date) + " (" + periodLabel(days) + ")";
+
+    var prevMap = {};
+    v.prevPL.states.forEach(function(s){ prevMap[s.state] = s; });
+
+    var rows = v.latestPL.states.map(function(s){
+      var p = prevMap[s.state];
+      var curGP = s.sales - s.cogs;
+      var prevGP = p ? (p.sales - p.cogs) : 0;
+      var d = curGP - prevGP;
+      return { state:s.state, curGP:curGP, d:d, isNew: !p };
+    });
+    rows.sort(function(a,b){ return Math.abs(b.d) - Math.abs(a.d); });
+    var top = rows.slice(0, 4);
+
+    wrap.innerHTML = '<div class="movers-row">' + top.map(function(r){
+      var cls = r.d > 0 ? "up" : r.d < 0 ? "down" : "flat";
+      var arrow = r.d > 0 ? "▲" : r.d < 0 ? "▼" : "•";
+      var color = r.d > 0 ? "var(--good)" : r.d < 0 ? "var(--critical)" : "var(--muted)";
+      return '<div class="mover-card"><span class="mover-state">' + r.state + '</span>' +
+        '<div class="mover-amt">' + fmtUSD(r.curGP) + ' <span style="font-size:11px;color:var(--muted);font-weight:500;">gross profit</span></div>' +
+        '<div class="mover-sub" style="color:' + color + '">' + arrow + ' ' + fmtUSD(Math.abs(r.d)) + (r.isNew ? " (new location)" : " change") + '</div></div>';
+    }).join("") + '</div>';
+  }
+
+  /* ---------------- render: location table ---------------- */
+  function renderLocations(v){
+    document.getElementById("locAsOf").textContent = v.latestPL ? "As of " + fmtDate(v.latestPL.date) : "";
+    var body = document.getElementById("locBody");
+    var foot = document.getElementById("locFoot");
+    if (!v.latestPL){
+      body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);font-family:\'Public Sans\',sans-serif;">No P&amp;L-by-location data yet.</td></tr>';
+      foot.innerHTML = "";
+      return;
+    }
+    var prevMap = {};
+    if (v.prevPL) v.prevPL.states.forEach(function(s){ prevMap[s.state] = s; });
+
+    var hcSnap = v.nearestHC(v.latestPL.date, 10);
+    var hcMap = {};
+    var hcOfficeMap = {};
+    if (hcSnap){
+      hcSnap.headcount.states.forEach(function(s){ hcMap[s.state] = s.count; });
+      if (hcSnap.headcount.offices) hcSnap.headcount.offices.forEach(function(o){ hcOfficeMap[o.code] = o.count; });
+    }
+
+    var officesByState = {};
+    if (v.latestPL.offices){
+      v.latestPL.offices.forEach(function(o){
+        (officesByState[o.state] = officesByState[o.state] || []).push(o);
+      });
+    }
+
+    var states = v.latestPL.states.slice().sort(function(a,b){ return b.sales - a.sales; });
+    var maxSales = Math.max.apply(null, states.map(function(s){ return s.sales; }));
+
+    var totalSales = 0, totalCogs = 0, totalHC = 0;
+    var rowsHtml = "";
+    states.forEach(function(s){
+      totalSales += s.sales; totalCogs += s.cogs;
+      var gp = s.sales - s.cogs;
+      var gm = margin(s.sales, s.cogs);
+      var neg = gm !== null && gm < 0;
+      var chipCls = gm === null ? "neutral" : neg ? "bad" : "good";
+      var barPct = maxSales ? (s.sales / maxSales) * 100 : 0;
+      var p = prevMap[s.state];
+      var deltaRow = "";
+      if (p){
+        var pGm = margin(p.sales, p.cogs);
+        if (gm !== null && pGm !== null){
+          var dPts = gm - pGm;
+          var cls = dPts > 0.05 ? "up" : dPts < -0.05 ? "down" : "";
+          if (cls) deltaRow = '<span class="row-delta ' + cls + '">' + fmtPts(dPts) + ' vs prior</span>';
+        }
+      }
+      var hc = hcMap[s.state];
+      if (hc) totalHC += hc;
+      var gpPerEmp = (hc && hc > 0) ? gp / hc : null;
+      var offices = officesByState[s.state];
+      var hasOffices = offices && offices.length > 0;
+      var toggleBtn = hasOffices
+        ? '<button class="state-toggle" data-toggle-state="' + escapeHtml(s.state) + '">▶</button>'
+        : '<button class="state-toggle" disabled>▶</button>';
+
+      rowsHtml += '<tr class="group-row' + (neg ? " neg-row" : "") + '">' +
+        '<td class="state-cell">' + toggleBtn + escapeHtml(s.state) + '</td>' +
+        '<td class="sales-cell"><span class="bar-track"><span class="bar-fill" style="width:' + barPct.toFixed(1) + '%"></span></span><span class="sales-num">' + fmtUSD(s.sales) + '</span></td>' +
+        '<td>' + fmtUSD(s.cogs) + '</td>' +
+        '<td>' + fmtUSD(gp) + '</td>' +
+        '<td><span class="margin-chip ' + chipCls + '">' + (gm===null?"—":gm.toFixed(1)+"%") + '</span>' + deltaRow + '</td>' +
+        '<td class="hc-num">' + (hc ? hc.toLocaleString("en-US") : "—") + '</td>' +
+        '<td>' + (gpPerEmp===null?"—":fmtUSD(gpPerEmp)) + '</td>' +
+        '</tr>';
+
+      if (hasOffices){
+        offices.sort(function(a,b){ return b.sales - a.sales; }).forEach(function(o){
+          var meta = SITE_NAMES[o.code] || {};
+          var oGp = o.sales - o.cogs;
+          var oGm = margin(o.sales, o.cogs);
+          var oNeg = oGm !== null && oGm < 0;
+          var oChip = oGm === null ? "neutral" : oNeg ? "bad" : "good";
+          var oHc = hcOfficeMap[o.code];
+          var oGpPerEmp = (oHc && oHc > 0) ? oGp / oHc : null;
+          rowsHtml += '<tr class="office-row" data-office-of="' + escapeHtml(s.state) + '">' +
+            '<td class="office-name-cell">' + escapeHtml(meta.name || o.code) +
+              '<span class="office-co">' + escapeHtml(meta.company || ("Class " + o.code)) + '</span></td>' +
+            '<td>' + fmtUSD(o.sales) + '</td>' +
+            '<td>' + fmtUSD(o.cogs) + '</td>' +
+            '<td>' + fmtUSD(oGp) + '</td>' +
+            '<td><span class="margin-chip ' + oChip + '">' + (oGm===null?"—":oGm.toFixed(1)+"%") + '</span></td>' +
+            '<td class="hc-num">' + (oHc ? oHc.toLocaleString("en-US") : "—") + '</td>' +
+            '<td>' + (oGpPerEmp===null?"—":fmtUSD(oGpPerEmp)) + '</td>' +
+            '</tr>';
+        });
+      }
+    });
+    body.innerHTML = rowsHtml;
+
+    body.querySelectorAll("[data-toggle-state]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var st = btn.getAttribute("data-toggle-state");
+        var open = btn.classList.toggle("open");
+        btn.textContent = "▶";
+        body.querySelectorAll('[data-office-of="' + CSS.escape(st) + '"]').forEach(function(row){
+          row.classList.toggle("show", open);
+        });
+      });
+    });
+
+    var totalGP = totalSales - totalCogs;
+    var totalGM = margin(totalSales, totalCogs);
+    var totalGpPerEmp = totalHC ? totalGP / totalHC : null;
+    foot.innerHTML = '<tr><td>Total</td><td>' + fmtUSD(totalSales) + '</td><td>' + fmtUSD(totalCogs) + '</td><td>' + fmtUSD(totalGP) + '</td><td>' + (totalGM===null?"—":totalGM.toFixed(1)+"%") + '</td>' +
+      '<td class="hc-num">' + (totalHC ? totalHC.toLocaleString("en-US") : "—") + '</td><td>' + (totalGpPerEmp===null?"—":fmtUSD(totalGpPerEmp)) + '</td></tr>';
+  }
+
+  /* ---------------- render: trend mini charts ---------------- */
+  function buildTrendSVG(points, color, valueFmt){
+    var w = 300, h = 88, padL = 40, padR = 4, padT = 12, padB = 16;
+    if (points.length < 2){
+      return null;
+    }
+    valueFmt = valueFmt || function(v){ return Math.round(v).toLocaleString("en-US"); };
+    var xs = points.map(function(p){ return new Date(p.date+"T00:00:00Z").getTime(); });
+    var ys = points.map(function(p){ return p.value; });
+    var minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs);
+    var rawMinY = Math.min.apply(null, ys), rawMaxY = Math.max.apply(null, ys);
+    var minY = rawMinY, maxY = rawMaxY;
+    if (minY === maxY){ minY = minY - 1; maxY = maxY + 1; }
+    var spanX = maxX - minX || 1, spanY = maxY - minY;
+
+    function X(x){ return padL + ((x - minX) / spanX) * (w - padL - padR); }
+    function Y(y){ return padT + (1 - (y - minY) / spanY) * (h - padT - padB); }
+
+    var coords = points.map(function(p, i){ return [X(xs[i]), Y(p.value)]; });
+    var path = coords.map(function(c, i){ return (i === 0 ? "M" : "L") + c[0].toFixed(1) + "," + c[1].toFixed(1); }).join(" ");
+    var area = path + " L" + coords[coords.length-1][0].toFixed(1) + "," + (h-padB).toFixed(1) +
+      " L" + coords[0][0].toFixed(1) + "," + (h-padB).toFixed(1) + " Z";
+    var last = coords[coords.length-1];
+    var first = coords[0];
+
+    // Min/max value labels along the left edge, so the sparkline's vertical
+    // scale is grounded instead of implying a swing bigger than it is.
+    var maxLabelY = Y(maxY) + 8;
+    var minLabelY = Y(minY) - 3;
+    if (minLabelY - maxLabelY < 12){
+      maxLabelY = padT + 8;
+      minLabelY = h - padB - 3;
+    }
+    maxLabelY = Math.min(Math.max(maxLabelY, padT + 8), h - padB - 3);
+    minLabelY = Math.min(Math.max(minLabelY, padT + 8), h - padB - 3);
+
+    return '<svg class="trend-svg" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" role="img" aria-label="trend">' +
+      '<line x1="' + padL + '" y1="' + (h-padB) + '" x2="' + (w-padR) + '" y2="' + (h-padB) + '" stroke="var(--border)" stroke-width="1"/>' +
+      '<path d="' + area + '" fill="' + color + '" opacity="0.12" stroke="none"/>' +
+      '<path d="' + path + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
+      '<circle cx="' + first[0].toFixed(1) + '" cy="' + first[1].toFixed(1) + '" r="3" fill="' + color + '" stroke="var(--surface)" stroke-width="1.5"/>' +
+      '<circle cx="' + last[0].toFixed(1) + '" cy="' + last[1].toFixed(1) + '" r="4" fill="' + color + '" stroke="var(--surface)" stroke-width="2"/>' +
+      '<text x="2" y="' + maxLabelY.toFixed(1) + '" font-size="9" fill="var(--muted)" font-family="IBM Plex Mono, monospace">' + escapeHtml(valueFmt(rawMaxY)) + '</text>' +
+      '<text x="2" y="' + minLabelY.toFixed(1) + '" font-size="9" fill="var(--muted)" font-family="IBM Plex Mono, monospace">' + escapeHtml(valueFmt(rawMinY)) + '</text>' +
+      '<text x="' + padL + '" y="' + (h-4) + '" font-size="9" fill="var(--muted)" font-family="IBM Plex Mono, monospace">' + fmtDate(points[0].date) + '</text>' +
+      '<text x="' + (w-padR) + '" y="' + (h-4) + '" font-size="9" fill="var(--muted)" font-family="IBM Plex Mono, monospace" text-anchor="end">' + fmtDate(points[points.length-1].date) + '</text>' +
+      '</svg>';
+  }
+
+  function renderTrends(v){
+    document.getElementById("cashAsOf").textContent = v.latestCash ? "As of " + fmtDate(v.latestCash.date) : "";
+    var metrics = [
+      { key:"cash", label:"Cash on hand", color:"var(--fin-series-cash)", swatch:"#2a78d6" },
+      { key:"ar", label:"Accounts Receivable", color:"var(--fin-series-ar)", swatch:"#eb6834" },
+      { key:"ap", label:"Accounts Payable", color:"var(--fin-series-ap)", swatch:"#1baf7a" }
+    ];
+    var html = metrics.map(function(m){
+      var pts = v.withCash.map(function(s){ return { date:s.date, value:s[m.key] }; });
+      var curVal = pts.length ? pts[pts.length-1].value : null;
+      var svg = buildTrendSVG(pts, m.color, fmtCompactUSD);
+      var body = svg ? svg : '<div class="trend-empty">Add another weekly update to start plotting this trend.</div>';
+      return '<div class="trend-card">' +
+        '<div class="trend-head"><span class="trend-name"><span class="swatch" style="background:' + m.swatch + '"></span>' + m.label + '</span>' +
+        '<span class="trend-value">' + fmtUSD(curVal) + '</span></div>' + body + '</div>';
+    }).join("");
+    document.getElementById("trendRow").innerHTML = html;
+  }
+
+  /* ---------------- render: headcount by location ---------------- */
+  function renderHeadcount(v){
+    document.getElementById("hcAsOf").textContent = v.latestHC ? "As of " + fmtDate(v.latestHC.date) : "";
+
+    var pts = v.withHC.map(function(s){ return { date:s.date, value:s.headcount.total }; });
+    var curTotal = pts.length ? pts[pts.length-1].value : null;
+    var svg = buildTrendSVG(pts, "var(--warn)");
+    var body = svg ? svg : '<div class="trend-empty">Add another weekly headcount update to start plotting this trend.</div>';
+    document.getElementById("hcTrendCard").innerHTML =
+      '<div class="trend-head"><span class="trend-name"><span class="swatch" style="background:#b8863b"></span>Total headcount</span>' +
+      '<span class="trend-value">' + (curTotal===null?"—":curTotal.toLocaleString("en-US")) + '</span></div>' + body;
+
+    var moversSub = document.getElementById("hcMoversSub");
+    var moversWrap = document.getElementById("hcMoversWrap");
+
+    if (!v.latestHC){
+      moversSub.textContent = "";
+      moversWrap.innerHTML = '<div class="empty-note">No headcount data yet.</div>';
+      return;
+    }
+
+    var prevMap = {};
+    if (v.prevHC) v.prevHC.headcount.states.forEach(function(s){ prevMap[s.state] = s.count; });
+
+    var states = v.latestHC.headcount.states.slice().sort(function(a,b){ return b.count - a.count; });
+
+    if (v.prevHC){
+      var days = daysBetween(v.prevHC.date, v.latestHC.date);
+      moversSub.textContent = fmtDate(v.prevHC.date) + " → " + fmtDate(v.latestHC.date) + " (" + periodLabel(days) + ")";
+      var moves = states.map(function(s){
+        var prevCount = prevMap[s.state];
+        var d = (prevCount === undefined) ? s.count : s.count - prevCount;
+        return { state:s.state, count:s.count, d:d, isNew: prevCount === undefined };
+      });
+      moves.sort(function(a,b){ return Math.abs(b.d) - Math.abs(a.d); });
+      var top = moves.filter(function(m){ return m.d !== 0; }).slice(0, 4);
+      if (!top.length){
+        moversWrap.innerHTML = '<div class="empty-note">No headcount changes by location since the last update.</div>';
+      } else {
+        moversWrap.innerHTML = '<div class="movers-row">' + top.map(function(m){
+          var color = m.d > 0 ? "var(--good)" : "var(--critical)";
+          var arrow = m.d > 0 ? "▲" : "▼";
+          return '<div class="mover-card"><span class="mover-state">' + escapeHtml(m.state) + '</span>' +
+            '<div class="mover-amt">' + m.count + ' <span style="font-size:11px;color:var(--muted);font-weight:500;">employees</span></div>' +
+            '<div class="mover-sub" style="color:' + color + '">' + arrow + ' ' + Math.abs(m.d) + (m.isNew ? " (new location)" : " vs prior") + '</div></div>';
+        }).join("") + '</div>';
+      }
+    } else {
+      moversSub.textContent = "";
+      moversWrap.innerHTML = '<div class="empty-note">Add a second weekly headcount update and the biggest staffing swings by location will show up here.</div>';
+    }
+  }
+
+  /* ---------------- render: history ---------------- */
+  function renderHistory(){
+    var sorted = snapshots.slice().sort(function(a,b){ return a.date < b.date ? 1 : -1; });
+    if (!sorted.length){
+      document.getElementById("historyList").innerHTML = '<div class="empty-note">No updates recorded yet.</div>';
+      return;
+    }
+    document.getElementById("historyList").innerHTML = sorted.map(function(s){
+      var tags = "";
+      if (s.company) tags += "<span>P&amp;L by location</span>";
+      if (s.cash !== null && s.cash !== undefined) tags += "<span>Cash / AR / AP</span>";
+      if (s.headcount) tags += "<span>Headcount</span>";
+      return '<div class="history-row"><span>' + fmtDate(s.date) + '</span><span class="history-tags">' + tags + '</span></div>';
+    }).join("");
+  }
+
+  /* ---------------- render: rolling 4-week grids ---------------- */
+  function fmtUSDSigned(n){
+    if (n === null || n === undefined || isNaN(n)) return "—";
+    var neg = n < 0, abs = Math.round(Math.abs(n));
+    return (neg ? "-$" : "+$") + abs.toLocaleString("en-US");
+  }
+  function renderWeekTable(elId, cols, rowLabel, rows, opts){
+    opts = opts || {};
+    var el = document.getElementById(elId);
+    if (!cols.length || !rows.length){
+      el.innerHTML = '<tbody><tr><td class="empty-cell">No weekly updates on file yet — add one below and it will appear here.</td></tr></tbody>';
+      return;
+    }
+    var thead = '<thead><tr><th>' + escapeHtml(rowLabel) + '</th>' +
+      cols.map(function(c){ return '<th>' + escapeHtml(fmtWeekCol(c)) + '</th>'; }).join("") +
+      (opts.totalCol ? '<th>Total</th>' : "") +
+      (opts.wowCols ? '<th>WoW Change ($)</th><th>WoW Change (%)</th>' : "") +
+      '</tr></thead>';
+
+    var colSums = cols.map(function(){ return 0; });
+    var bodyRows = rows.map(function(r){
+      var fmtFn = r.fmt || opts.fmt || fmtUSD;
+      var cellsHtml = r.values.map(function(val, i){
+        if (opts.totalCol && typeof val === "number") colSums[i] += val;
+        return "<td>" + fmtFn(val) + "</td>";
+      }).join("");
+      var extra = "";
+      if (opts.totalCol){
+        var total = r.values.reduce(function(a,b){ return a + (typeof b === "number" ? b : 0); }, 0);
+        extra += "<td>" + (opts.fmtTotal ? opts.fmtTotal(total) : total.toLocaleString("en-US")) + "</td>";
+      }
+      if (opts.wowCols){
+        var known = r.values.filter(function(x){ return typeof x === "number"; });
+        if (known.length >= 2){
+          var a = known[known.length-2], b = known[known.length-1];
+          var diff = b - a;
+          var pct = a !== 0 ? (diff / Math.abs(a)) * 100 : null;
+          var cls = diff > 0.0001 ? "wow-pos" : diff < -0.0001 ? "wow-neg" : "wow-flat";
+          extra += '<td class="' + cls + '">' + fmtUSDSigned(diff) + '</td><td class="' + cls + '">' + fmtPct(pct) + "</td>";
+        } else {
+          extra += "<td>—</td><td>—</td>";
+        }
+      }
+      return '<tr' + (r.isTotal ? ' class="total-row"' : '') + '><td class="row-label">' + escapeHtml(r.label) + "</td>" + cellsHtml + extra + "</tr>";
+    });
+
+    var footHtml = "";
+    if (opts.totalRow){
+      var totalCells = colSums.map(function(s){ return "<td>" + (opts.fmtTotal ? opts.fmtTotal(s) : s.toLocaleString("en-US")) + "</td>"; }).join("");
+      var grand = colSums.reduce(function(a,b){ return a + b; }, 0);
+      footHtml = '<tr class="total-row"><td class="row-label">Total</td>' + totalCells +
+        (opts.totalCol ? "<td>" + (opts.fmtTotal ? opts.fmtTotal(grand) : grand.toLocaleString("en-US")) + "</td>" : "") +
+        (opts.wowCols ? "<td></td><td></td>" : "") + "</tr>";
+    }
+
+    el.innerHTML = thead + "<tbody>" + bodyRows.join("") + footHtml + "</tbody>";
+  }
+
+  function renderRolling4Week(v){
+    var cashWeeks = v.withCash.slice(-4);
+    var cashCols = cashWeeks.map(function(s){ return s.date; });
+    renderWeekTable("wkCashTable", cashCols, "Metric", [
+      { label:"Cash Balance", values: cashWeeks.map(function(s){ return s.cash; }) },
+      { label:"Accounts Receivable", values: cashWeeks.map(function(s){ return s.ar; }) },
+      { label:"Accounts Payable", values: cashWeeks.map(function(s){ return s.ap; }) }
+    ], { fmt:fmtUSD, wowCols:true });
+
+    var plWeeks = v.withPL.slice(-4);
+    var plCols = plWeeks.map(function(s){ return s.date; });
+    var pctFmt = function(x){ return (x===null||x===undefined) ? "—" : x.toFixed(1)+"%"; };
+    renderWeekTable("wkPLTable", plCols, "Metric", [
+      { label:"Gross Sales", values: plWeeks.map(function(s){ return s.company.sales; }) },
+      { label:"Cost of Sales", values: plWeeks.map(function(s){ return s.company.cogs; }) },
+      { label:"Gross Margin ($)", values: plWeeks.map(function(s){ return s.company.sales - s.company.cogs; }) },
+      { label:"Gross Margin (%)", values: plWeeks.map(function(s){ return margin(s.company.sales, s.company.cogs); }), fmt:pctFmt }
+    ], { fmt:fmtUSD });
+
+    var hcWeeks = v.withHC.slice(-4);
+    var hcCols = hcWeeks.map(function(s){ return s.date; });
+    var countFmt = function(x){ return (typeof x === "number") ? x.toLocaleString("en-US") : "—"; };
+
+    var custNames = [];
+    var custSeen = {};
+    hcWeeks.forEach(function(s){
+      (s.headcount.customers || []).forEach(function(c){
+        if (!custSeen[c.name]){ custSeen[c.name] = true; custNames.push(c.name); }
+      });
+    });
+    var custRows = custNames.map(function(name){
+      var values = hcWeeks.map(function(s){
+        var match = (s.headcount.customers || []).filter(function(c){ return c.name === name; });
+        return match.length ? match[0].count : 0;
+      });
+      return { label:name, values:values, fmt:countFmt };
+    }).filter(function(r){ return r.values.some(function(x){ return x > 0; }); })
+      .sort(function(a,b){ return b.values[b.values.length-1] - a.values[a.values.length-1]; });
+    renderWeekTable("wkCustTable", hcCols, "Customer", custRows, { fmt:countFmt, totalCol:true, totalRow:true });
+
+    var mgrRows = ["Cach Labor", "Workforce Strategies"].map(function(name){
+      var values = hcWeeks.map(function(s){
+        var match = (s.headcount.managers || []).filter(function(m){ return m.name === name; });
+        return match.length ? match[0].count : 0;
+      });
+      return { label:name, values:values, fmt:countFmt };
+    });
+    renderWeekTable("wkMgrTable", hcCols, "Manager", mgrRows, { fmt:countFmt, totalCol:true, totalRow:true });
+  }
+
+  /* ---------------- week picker ---------------- */
+  var selectedAsOf = null; // null = "Most recent" (no cutoff)
+
+  function buildWeekSelector(){
+    var sel = document.getElementById("weekSelect");
+    if (!sel) return;
+    var byDate = {};
+    snapshots.forEach(function(s){ byDate[s.date] = s; });
+    var dates = Object.keys(byDate).sort(function(a,b){ return a < b ? 1 : -1; });
+    var optsHtml = '<option value="">Most recent</option>' + dates.map(function(d){
+      var doc = byDate[d];
+      var tags = [];
+      if (doc.company) tags.push("P&L");
+      if (doc.cash !== null && doc.cash !== undefined) tags.push("Cash/AR/AP");
+      if (doc.headcount) tags.push("Headcount");
+      var label = fmtDate(d) + (tags.length ? " — " + tags.join(", ") : "");
+      return '<option value="' + d + '">' + escapeHtml(label) + '</option>';
+    }).join("");
+    sel.innerHTML = optsHtml;
+    if (selectedAsOf && !byDate[selectedAsOf]) selectedAsOf = null;
+    sel.value = selectedAsOf || "";
+  }
+
+  function renderWeekPickerNote(){
+    var note = document.getElementById("weekPickerNote");
+    if (!note) return;
+    if (selectedAsOf){
+      note.style.display = "block";
+      note.textContent = "Showing the dashboard as of " + fmtDate(selectedAsOf) + " — figures reflect only data on file through that date. Pick “Most recent” to return to the latest view.";
+    } else {
+      note.style.display = "none";
+    }
+  }
+
+  /* ---------------- master render ---------------- */
+  function renderAll(){
+    var v = computeView(snapshots, selectedAsOf);
+    renderKPIs(v);
+    renderMovers(v);
+    renderLocations(v);
+    renderTrends(v);
+    renderHeadcount(v);
+    renderHistory();
+    renderRolling4Week(v);
+    renderWeekPickerNote();
+  }
+
+  /* ---------------- add-update form ---------------- */
+  function buildForm(){
+    var latestPL = snapshots.filter(function(s){ return s.company; }).sort(function(a,b){ return a.date < b.date ? 1 : -1; })[0];
+    var prevStateMap = {};
+    if (latestPL) latestPL.states.forEach(function(s){ prevStateMap[s.state] = s; });
+
+    var latestHC = snapshots.filter(function(s){ return s.headcount; }).sort(function(a,b){ return a.date < b.date ? 1 : -1; })[0];
+    var prevHcMap = {};
+    if (latestHC) latestHC.headcount.states.forEach(function(s){ prevHcMap[s.state] = s.count; });
+
+    var today = new Date().toISOString().slice(0,10);
+
+    var stateRowsHtml = '<div class="state-grid" id="stateGrid">' +
+      '<div class="gh">Location</div><div class="gh">Sales ($)</div><div class="gh">Cost of Sales ($)</div>' +
+      STATE_ORDER.map(function(code){
+        var prev = prevStateMap[code];
+        return '<div class="st-code">' + code + '</div>' +
+          '<input type="number" step="0.01" data-state="' + code + '" data-field="sales" value="' + (prev ? prev.sales : "") + '">' +
+          '<input type="number" step="0.01" data-state="' + code + '" data-field="cogs" value="' + (prev ? prev.cogs : "") + '">';
+      }).join("") + '</div>';
+
+    var hcRowsHtml = '<div class="state-grid" id="hcGrid" style="grid-template-columns:64px 1fr;">' +
+      '<div class="gh">Location</div><div class="gh">Headcount</div>' +
+      STATE_ORDER.map(function(code){
+        var prev = prevHcMap[code];
+        return '<div class="st-code">' + code + '</div>' +
+          '<input type="number" step="1" data-hc-state="' + code + '" value="' + (prev !== undefined ? prev : "") + '">';
+      }).join("") + '</div>';
+
+    var html =
+      '<details class="add-panel"><summary><span class="chev">▶</span> Add an update</summary>' +
+      '<div class="panel-body">' +
+        '<div class="field-row">' +
+          '<div class="field"><label>Date</label><input type="date" id="fDate" value="' + today + '"></div>' +
+        '</div>' +
+        '<div class="field-row" style="align-items:flex-end;">' +
+          '<div class="field"><label>Cash</label><input type="number" step="0.01" id="fCash" placeholder="e.g. 1264827.13"></div>' +
+          '<div class="field"><label>Accounts Receivable</label><input type="number" step="0.01" id="fAr" placeholder="e.g. 2546947.45"></div>' +
+          '<div class="field"><label>Accounts Payable</label><input type="number" step="0.01" id="fAp" placeholder="e.g. 116078.08"></div>' +
+        '</div>' +
+        '<div class="form-note">Fill in all three to log this week&rsquo;s cash position, or leave blank to skip.</div>' +
+        '<label class="toggle-row"><input type="checkbox" id="fIncludePL"> Include this period&rsquo;s P&amp;L by location</label>' +
+        '<div id="plFields" style="display:none;">' +
+          '<div class="field-row">' +
+            '<div class="field"><label>Total Sales</label><input type="number" step="0.01" id="fCompanySales"></div>' +
+            '<div class="field"><label>Total Cost of Sales</label><input type="number" step="0.01" id="fCompanyCogs"></div>' +
+          '</div>' +
+          stateRowsHtml +
+          '<div class="form-note">Pre-filled with the last recorded values &mdash; edit whichever locations changed.</div>' +
+        '</div>' +
+        '<label class="toggle-row"><input type="checkbox" id="fIncludeHC"> Include headcount by location</label>' +
+        '<div id="hcFields" style="display:none;">' +
+          hcRowsHtml +
+          '<div class="form-note">Pre-filled with the last recorded headcount &mdash; edit whichever locations changed.</div>' +
+        '</div>' +
+        '<button class="save-btn" id="saveBtn">Save update</button>' +
+        '<div class="form-status" id="formStatus"></div>' +
+      '</div></details>';
+
+    document.getElementById("formHost").innerHTML = html;
+
+    var includeCb = document.getElementById("fIncludePL");
+    var plFields = document.getElementById("plFields");
+    includeCb.addEventListener("change", function(){
+      plFields.style.display = includeCb.checked ? "block" : "none";
+    });
+
+    var includeHcCb = document.getElementById("fIncludeHC");
+    var hcFields = document.getElementById("hcFields");
+    includeHcCb.addEventListener("change", function(){
+      hcFields.style.display = includeHcCb.checked ? "block" : "none";
+    });
+
+    document.getElementById("saveBtn").addEventListener("click", onSave);
+  }
+
+  function onSave(){
+    var statusEl = document.getElementById("formStatus");
+    statusEl.className = "form-status";
+    statusEl.textContent = "";
+
+    var date = document.getElementById("fDate").value;
+    if (!date){
+      statusEl.className = "form-status err";
+      statusEl.textContent = "Pick a date before saving.";
+      return;
+    }
+
+    var cash = document.getElementById("fCash").value;
+    var ar = document.getElementById("fAr").value;
+    var ap = document.getElementById("fAp").value;
+    var hasCash = cash !== "" || ar !== "" || ap !== "";
+    if (hasCash && (cash === "" || ar === "" || ap === "")){
+      statusEl.className = "form-status err";
+      statusEl.textContent = "Fill in cash, AR and AP together, or leave all three blank.";
+      return;
+    }
+
+    var includePL = document.getElementById("fIncludePL").checked;
+    var patch = { date: date };
+    if (hasCash){
+      patch.cash = parseFloat(cash);
+      patch.ar = parseFloat(ar);
+      patch.ap = parseFloat(ap);
+    }
+    if (includePL){
+      var companySales = parseFloat(document.getElementById("fCompanySales").value);
+      var companyCogs = parseFloat(document.getElementById("fCompanyCogs").value);
+      if (isNaN(companySales) || isNaN(companyCogs)){
+        statusEl.className = "form-status err";
+        statusEl.textContent = "Enter total sales and cost of sales for this period.";
+        return;
+      }
+      var states = [];
+      document.querySelectorAll("#stateGrid input[data-field='sales']").forEach(function(inp){
+        var code = inp.getAttribute("data-state");
+        var salesVal = parseFloat(inp.value);
+        var cogsInp = document.querySelector("#stateGrid input[data-state='" + code + "'][data-field='cogs']");
+        var cogsVal = parseFloat(cogsInp.value);
+        if (!isNaN(salesVal) || !isNaN(cogsVal)){
+          states.push({ state: code, sales: isNaN(salesVal) ? 0 : salesVal, cogs: isNaN(cogsVal) ? 0 : cogsVal });
+        }
+      });
+      patch.company = { sales: companySales, cogs: companyCogs };
+      patch.states = states;
+    }
+    var includeHC = document.getElementById("fIncludeHC").checked;
+    if (includeHC){
+      var hcStates = [];
+      var hcTotal = 0;
+      document.querySelectorAll("#hcGrid input[data-hc-state]").forEach(function(inp){
+        var code = inp.getAttribute("data-hc-state");
+        var val = parseInt(inp.value, 10);
+        if (!isNaN(val) && val > 0){
+          hcStates.push({ state: code, count: val });
+          hcTotal += val;
+        }
+      });
+      if (!hcStates.length){
+        statusEl.className = "form-status err";
+        statusEl.textContent = "Enter at least one location's headcount.";
+        return;
+      }
+      patch.headcount = { total: hcTotal, states: hcStates };
+    }
+
+    if (!hasCash && !includePL && !includeHC){
+      statusEl.className = "form-status err";
+      statusEl.textContent = "Enter cash/AR/AP, a P&L update, headcount, or a combination before saving.";
+      return;
+    }
+
+    saveSnapshot(date, patch, statusEl);
+  }
+
+  function saveSnapshot(date, patch, statusEl){
+    if (!dbReady || !dbHandle){
+      statusEl.className = "form-status err";
+      statusEl.textContent = "Live saving isn't connected in this view — ask Claude to add this update for you.";
+      return;
+    }
+    var btn = document.getElementById("saveBtn");
+    btn.disabled = true;
+    statusEl.textContent = "Saving…";
+    var ref = dbHandle.collection("snapshots").doc(date);
+    ref.get().then(function(snap){
+      var base = snap.exists ? snap.data() : { date: date };
+      var merged = Object.assign({}, base, patch, { date: date, updated_at: new Date().toISOString() });
+      return ref.set(merged);
+    }).then(function(){
+      statusEl.className = "form-status ok";
+      statusEl.textContent = "Saved. The dashboard above now reflects this update.";
+      btn.disabled = false;
+    }).catch(function(err){
+      statusEl.className = "form-status err";
+      statusEl.textContent = "Couldn't save (" + (err && err.code ? err.code : "error") + "). Try again in a moment.";
+      btn.disabled = false;
+    });
+  }
+
+  /* ---------------- mount / unmount (invoked by the host app) ---------------- */
+  var unsubSnapshots = null;
+  var unsubSnapshotsMobile = null;
+  var unsubCustomersMobile = null;
+  var unsubSnapshotsBanking = null;
+
+  function boot(){
+    buildWeekSelector();
+    renderAll();
+    buildForm();
+
+    var weekSelectEl = document.getElementById("weekSelect");
+    if (weekSelectEl){
+      weekSelectEl.addEventListener("change", function(){
+        selectedAsOf = weekSelectEl.value || null;
+        renderAll();
+      });
+    }
+  }
+
+  function mount(container, db, initial){
+    container.innerHTML = FIN_HTML;
+    selectedAsOf = null;
+    if (Array.isArray(initial) && initial.length) snapshots = initial;
+    boot();
+    if (db){
+      dbHandle = db;
+      dbReady = true;
+      unsubSnapshots = db.collection("snapshots").onSnapshot(function(qs){
+        var docs = qs.docs.map(function(d){ return d.data(); }).filter(Boolean);
+        if (docs.length){
+          snapshots = docs;
+          buildWeekSelector();
+          renderAll();
+          buildForm();
+        }
+      }, function(err){
+        console.error("snapshots subscription error", err);
+      });
+    } else {
+      dbHandle = null;
+      dbReady = false;
+    }
+  }
+
+  function unmount(){
+    if (unsubSnapshots){ unsubSnapshots(); unsubSnapshots = null; }
+    dbHandle = null;
+    dbReady = false;
+  }
+
+  function mountMobile(container, db){
+    container.innerHTML = MOBILE_HTML;
+    renderMobileAll();
+    if (db){
+      unsubSnapshotsMobile = db.collection("snapshots").onSnapshot(function(qs){
+        var docs = qs.docs.map(function(d){ return d.data(); }).filter(Boolean);
+        if (docs.length){
+          snapshots = docs;
+          renderMobileAll();
+        }
+      }, function(err){
+        console.error("snapshots subscription error", err);
+      });
+      unsubCustomersMobile = db.collection("customers").onSnapshot(function(qs){
+        custCache = qs.docs.map(function(d){ return d.data(); }).filter(Boolean);
+        renderMobileAll();
+      }, function(err){
+        console.error("customers subscription error", err);
+      });
+    }
+  }
+
+  function unmountMobile(){
+    if (unsubSnapshotsMobile){ unsubSnapshotsMobile(); unsubSnapshotsMobile = null; }
+    if (unsubCustomersMobile){ unsubCustomersMobile(); unsubCustomersMobile = null; }
+  }
+
+  function mountBanking(container, db){
+    container.innerHTML = BANKING_HTML;
+    renderBankingAll();
+    if (db){
+      unsubSnapshotsBanking = db.collection("snapshots").onSnapshot(function(qs){
+        var docs = qs.docs.map(function(d){ return d.data(); }).filter(Boolean);
+        if (docs.length){
+          snapshots = docs;
+          renderBankingAll();
+        }
+      }, function(err){
+        console.error("snapshots subscription error", err);
+      });
+    }
+  }
+
+  function unmountBanking(){
+    if (unsubSnapshotsBanking){ unsubSnapshotsBanking(); unsubSnapshotsBanking = null; }
+  }
+
+  window.WLFinance = { mount: mount, unmount: unmount, mountMobile: mountMobile, unmountMobile: unmountMobile, mountBanking: mountBanking, unmountBanking: unmountBanking };
+})();
+
+</script>
+<script>
+(function(){
+  "use strict";
+
   var SUPABASE_URL = "https://uxnkwkqtoszespuymahy.supabase.co";
   var SUPABASE_ANON_KEY = "sb_publishable_wRsuA2p7xvNmpYsaBQmJtA_-OW57H7j";
   var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -1203,6 +2566,7 @@
   function applyRoleUI(){
     var admin = isAdmin();
     Array.prototype.forEach.call(document.querySelectorAll(".admin-only"), function(el){ el.hidden = !admin; });
+    if(typeof applyFinanceRole === "function") applyFinanceRole();
   }
 
   var loginView = document.getElementById("login-view");
@@ -1332,6 +2696,7 @@
       if(el) el.hidden = (s !== sec);
     });
     if(sec === "home"){ loadReminders(); loadDashboard().then(renderHomeBankBalances); }
+    else if(sec === "finance") mountFinance();
     else if(sec === "customers") loadCustomers();
     else if(sec === "invoices") loadInvoices();
     else if(sec === "placements") loadPlacements();
@@ -2287,12 +3652,11 @@
   }
 
   // ---------- main load ----------
+  // Loads the snapshot rows that the Home bank balances and Mobile summary read.
+  // The Finance overview tab renders itself (see mountFinance below).
   var loaded = false;
   async function loadDashboard(){
     if(loaded) return;
-    var loadingRow = document.getElementById("loading-row");
-    var dataView = document.getElementById("data-view");
-    var dataErr = document.getElementById("data-err");
     try{
       var loadResults = await Promise.all([
         sb.from("snapshots").select("*").order("date", {ascending:true}),
@@ -2300,71 +3664,96 @@
       ]);
       var res = loadResults[0];
       if(res.error) throw res.error;
-      var rows = res.data || [];
+      financeRows = (res.data || []).filter(function(r){ return !r.is_deleted; });
+      if(financeRows.length) loaded = true;
+    }catch(err){
+      console.error("Couldn't load finance snapshots:", err);
+    }
+  }
+
+  // ---------- Finance overview tab: same view as the Workforce Ledger finance dashboard ----------
+  function snapToFin(r){
+    var d = Object.assign({}, r);
+    d.company = r.company_pl || null;
+    d.bankAccounts = r.bank_accounts || [];
+    return d;
+  }
+  function finToRow(d){
+    var o = { date: d.date };
+    ["cash","ar","ap","headcount","offices","states"].forEach(function(k){ if(d[k] !== undefined) o[k] = d[k]; });
+    if(d.company !== undefined) o.company_pl = d.company;
+    if(d.bankAccounts !== undefined) o.bank_accounts = d.bankAccounts;
+    return o;
+  }
+  async function fetchFinRows(){
+    var res = await sb.from("snapshots").select("*").order("date", {ascending:true});
+    if(res.error) throw res.error;
+    return (res.data || []).filter(function(r){ return !r.is_deleted; });
+  }
+  var finListeners = [];
+  function notifyFin(rows){
+    financeRows = rows;
+    loaded = rows.length > 0;
+    var qs = { docs: rows.map(function(r){ var d = snapToFin(r); return { data: function(){ return d; } }; }) };
+    finListeners.forEach(function(fn){ fn(qs); });
+  }
+  // Adapter so the ported view can read and write Supabase through the interface it expects.
+  var finDb = { collection: function(){ return {
+    onSnapshot: function(next, onErr){
+      finListeners.push(next);
+      return function(){ finListeners = finListeners.filter(function(f){ return f !== next; }); };
+    },
+    doc: function(date){ return {
+      get: function(){
+        return sb.from("snapshots").select("*").eq("date", date).maybeSingle().then(function(r){
+          if(r.error) throw r.error;
+          var row = r.data;
+          return { exists: !!row, data: function(){ return row ? snapToFin(row) : null; } };
+        });
+      },
+      set: function(merged){
+        var row = finToRow(merged);
+        return sb.from("snapshots").select("date").eq("date", date).maybeSingle().then(function(r){
+          if(r.error) throw r.error;
+          return r.data ? sb.from("snapshots").update(row).eq("date", date) : sb.from("snapshots").insert(row);
+        }).then(function(w){
+          if(w && w.error) throw w.error;
+          // let the form's "Saved" message show before the view rebuilds with the new data
+          setTimeout(function(){ fetchFinRows().then(notifyFin).catch(function(e){ console.error(e); }); }, 1500);
+        });
+      }
+    }; }
+  }; } };
+
+  function applyFinanceRole(){
+    var host = document.getElementById("formHost");
+    var sec = host && host.closest ? host.closest("section") : null;
+    if(sec) sec.hidden = !isAdmin();
+  }
+
+  async function mountFinance(){
+    var loadingRow = document.getElementById("loading-row");
+    var errBox = document.getElementById("data-err");
+    var host = document.getElementById("fin-host");
+    if(!host) return;
+    loadingRow.hidden = false;
+    errBox.style.display = "none";
+    try{
+      var rows = await fetchFinRows();
       financeRows = rows;
+      loadingRow.hidden = true;
       if(!rows.length){
-        loadingRow.hidden = true;
-        dataErr.style.display = "block";
-        dataErr.textContent = "No finance snapshots found yet.";
+        host.innerHTML = '<div class="empty-note" style="padding:24px;">No finance snapshots found yet.</div>';
         return;
       }
-      loaded = true;
-      var latest = rows[rows.length-1];
-      var prev = rows.length > 1 ? rows[rows.length-2] : null;
-
-      var staleBanner = document.getElementById("stale-banner");
-      var today = new Date();
-      var latestDate = new Date(latest.date + "T00:00:00");
-      var daysOld = Math.floor((today - latestDate) / 86400000);
-      if(daysOld > 10){
-        staleBanner.style.display = "flex";
-        document.getElementById("stale-date").textContent = fmtDateFull(latest.date);
-      }
-
-      // KPIs
-      var kpiGrid = document.getElementById("kpi-grid");
-      kpiGrid.innerHTML = "";
-      var latestRevenue = (latest.company_pl && latest.company_pl.sales) || 0;
-      var latestCogs = (latest.company_pl && latest.company_pl.cogs) || 0;
-      var prevRevenue = prev ? ((prev.company_pl && prev.company_pl.sales) || 0) : null;
-      var prevCogs = prev ? ((prev.company_pl && prev.company_pl.cogs) || 0) : null;
-      var margin = latestRevenue ? ((latestRevenue - latestCogs)/latestRevenue)*100 : null;
-      var prevMargin = (prev && prevRevenue) ? ((prevRevenue - prevCogs)/prevRevenue)*100 : null;
-
-      kpiGrid.appendChild(kpiTile("Cash", fmtUSD(latest.cash), deltaEl(latest.cash, prev?prev.cash:null, false)));
-      kpiGrid.appendChild(kpiTile("Accounts receivable", fmtUSD(latest.ar), deltaEl(latest.ar, prev?prev.ar:null, false)));
-      kpiGrid.appendChild(kpiTile("Accounts payable", fmtUSD(latest.ap), deltaEl(latest.ap, prev?prev.ap:null, true)));
-      kpiGrid.appendChild(kpiTile("Weekly revenue", fmtUSD(latestRevenue), deltaEl(latestRevenue, prevRevenue, false)));
-      kpiGrid.appendChild(kpiTile("Weekly COGS", fmtUSD(latestCogs), deltaEl(latestCogs, prevCogs, true)));
-      var marginTile = kpiTile("Gross margin", fmtPct(margin), deltaEl(margin, prevMargin, false));
-      kpiGrid.appendChild(marginTile);
-
-      // gross-profit movers by location
-      renderMovers(rows);
-
-      // cash / AR / AP trend cards
-      document.getElementById("cash-trend-sub").textContent =
-        rows.length + " weekly snapshots · as of " + fmtDateFull(latest.date);
-      renderCashTrendRow(rows);
-
-      // location ledger (state -> office drill-down)
-      renderLocTable(latest);
-
-      // headcount trend + biggest movers
-      renderHeadcountTrend(rows);
-
-      // headcount
-      renderHeadcount(document.getElementById("headcount-stats"), latest.headcount || {});
-
-      // trailing 4 weeks: P&L, cash, headcount by customer & manager
-      renderTrailingFourWeeks(rows);
-
-      loadingRow.hidden = true;
-      dataView.hidden = false;
+      window.WLFinance.unmount();
+      finListeners = [];
+      window.WLFinance.mount(host, finDb, rows.map(snapToFin));
+      applyFinanceRole();
     }catch(err){
       loadingRow.hidden = true;
-      dataErr.style.display = "block";
-      dataErr.textContent = "Couldn't load finance data: " + ((err && err.message) || "unknown error") +
+      errBox.style.display = "block";
+      errBox.textContent = "Couldn't load finance data: " + ((err && err.message) || "unknown error") +
         ". If you just signed in, make sure your account has been added in Supabase Auth and the table policies allow authenticated reads.";
     }
   }
