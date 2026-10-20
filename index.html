@@ -1370,7 +1370,7 @@
       </div>
     </main>
 
-    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project</footer>
+    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build finance-v2</footer>
   </div>
 
 </div>
@@ -1392,6 +1392,21 @@
   </div>
 </div>
 
+<script>
+// Diagnostic: show any script error on screen instead of failing silently.
+window.addEventListener("error", function(e){
+  try{
+    var b = document.getElementById("js-err-banner");
+    if(!b){ b = document.createElement("div"); b.id = "js-err-banner";
+      b.style.cssText = "position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#B14B4B;color:#fff;font:13px monospace;padding:10px 14px;white-space:pre-wrap;max-height:40vh;overflow:auto";
+      document.body.appendChild(b); }
+    b.textContent += "Script error: " + (e.message || "unknown") + (e.lineno ? " (line " + e.lineno + ")" : "") + "\n";
+  }catch(x){}
+});
+window.addEventListener("unhandledrejection", function(e){
+  try{ var r = e.reason; console.error("Unhandled:", r); }catch(x){}
+});
+</script>
 <script>
 (function(){
   "use strict";
