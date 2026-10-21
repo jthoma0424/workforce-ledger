@@ -439,6 +439,8 @@
   .login-msg{font-size:12.5px; margin-top:13px; padding:9px 11px; border-radius:8px; display:none; line-height:1.5;}
   .login-msg.ok{display:block; background:color-mix(in srgb, var(--good) 12%, var(--surface-1)); color:var(--good);}
   .login-msg.err{display:block; background:color-mix(in srgb, var(--critical) 12%, var(--surface-1)); color:var(--critical);}
+  /* mobile-summary-only users: no navigation, no company switcher */
+  body.role-mobile nav.section-nav, body.role-mobile .js-companies-btn{display:none !important;}
   .login-link{background:none; border:none; padding:0; color:var(--series-1); font-size:13px; cursor:pointer; text-decoration:underline; font-family:inherit;}
   .login-foot{font-size:11.5px; color:var(--muted); margin-top:18px; line-height:1.5;}
 
@@ -909,6 +911,7 @@
         <div class="who">
           <button class="btn-ghost js-companies-btn" type="button">&larr; Companies</button>
           <span class="who-email" id="who-email"></span>
+          <button class="btn-ghost js-open-setpw" type="button">Password</button>
           <button class="btn-ghost" id="signout-btn" type="button">Sign out</button>
         </div>
       </div>
@@ -1631,7 +1634,7 @@
       </div>
     </main>
 
-    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build login-v1</footer>
+    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build mobile-v1</footer>
   </div>
 
 </div>
@@ -2836,12 +2839,14 @@ window.addEventListener("unhandledrejection", function(e){
       if(session && session.user){
         var r = await sb.from("user_roles").select("role").eq("user_id", session.user.id).maybeSingle();
         if(!r.error && r.data && r.data.role === "admin") currentRole = "admin";
+        else if(!r.error && r.data && r.data.role === "mobile") currentRole = "mobile";
       }
     }catch(e){ /* stay viewer on any error */ }
     applyRoleUI();
   }
   function applyRoleUI(){
     var admin = isAdmin();
+    document.body.classList.toggle("role-mobile", currentRole === "mobile");
     Array.prototype.forEach.call(document.querySelectorAll(".admin-only"), function(el){ el.hidden = !admin; });
     if(typeof applyFinanceRole === "function") applyFinanceRole();
   }
@@ -3001,6 +3006,11 @@ window.addEventListener("unhandledrejection", function(e){
   function afterSignIn(){
     if(WL_RECOVERY && currentCompany === null){ WL_RECOVERY = false; openSetPassword(true); return; }
     if(currentCompany !== null) return;   // already inside a company (e.g. token refresh): leave the screen alone
+    if(currentRole === "mobile"){
+      // mobile-summary-only users go straight to the summary, with no company list or other tabs
+      setCompanyScreen("ws"); showSection("mobile");
+      return;
+    }
     if(location.hash.indexOf("#customer/") === 0){
       // a direct link to a customer page goes straight into Workforce Strategies
       setCompanyScreen("ws");
@@ -3015,7 +3025,11 @@ window.addEventListener("unhandledrejection", function(e){
   Array.prototype.forEach.call(document.querySelectorAll(".js-open-setpw"), function(b){
     b.addEventListener("click", function(){ openSetPassword(false); });
   });
-  document.getElementById("setpw-skip").addEventListener("click", function(){ setCompanyScreen(null); });
+  function leaveSetPassword(){
+    if(currentRole === "mobile"){ setCompanyScreen("ws"); showSection("mobile"); }
+    else setCompanyScreen(null);
+  }
+  document.getElementById("setpw-skip").addEventListener("click", leaveSetPassword);
   document.getElementById("setpw-form").addEventListener("submit", async function(e){
     e.preventDefault();
     var pw = document.getElementById("setpw-new").value, pw2 = document.getElementById("setpw-confirm").value;
@@ -3027,7 +3041,7 @@ window.addEventListener("unhandledrejection", function(e){
       var res = await sb.auth.updateUser({ password: pw });
       if(res.error) throw res.error;
       showMsg(msgEl, "Password saved. Next time, sign in with your email and this password.", "ok");
-      setTimeout(function(){ if(currentCompany === "setpw") setCompanyScreen(null); }, 1500);
+      setTimeout(function(){ if(currentCompany === "setpw") leaveSetPassword(); }, 1500);
     }catch(err){
       showMsg(msgEl, (err && err.message) ? err.message : "Couldn't save the password. Try again.", "err");
     }finally{
@@ -3055,6 +3069,7 @@ window.addEventListener("unhandledrejection", function(e){
       currentCompany = null;
       loginView.hidden = false;
       currentRole = "viewer";
+      document.body.classList.remove("role-mobile");
     }
   });
 
@@ -3062,6 +3077,7 @@ window.addEventListener("unhandledrejection", function(e){
   var SECTION_IDS = ["home", "finance", "customers", "invoices", "placements", "payroll", "paytools", "upload", "mobile"];
   var sectionPills = document.querySelectorAll(".pill[data-section]");
   function showSection(sec){
+    if(currentRole === "mobile") sec = "mobile";
     var custDetail = document.getElementById("view-customer-detail");
     if(custDetail) custDetail.hidden = true;
     if(location.hash.indexOf("#customer/") === 0) history.replaceState(null, "", location.pathname + location.search);
@@ -3087,6 +3103,7 @@ window.addEventListener("unhandledrejection", function(e){
 
   // ---------- customer detail page: routing ----------
   function openCustomerDetail(id, pushHash){
+    if(currentRole === "mobile") return;
     SECTION_IDS.forEach(function(s){ var el = document.getElementById("view-" + s); if(el) el.hidden = true; });
     sectionPills.forEach(function(b){ b.classList.toggle("active", b.getAttribute("data-section") === "customers"); });
     document.getElementById("view-customer-detail").hidden = false;
