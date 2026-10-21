@@ -119,6 +119,22 @@
   .btn-ghost:hover{background:var(--surface-2); color:var(--text-primary);}
   .btn-ghost:focus-visible, .btn-primary:focus-visible, input:focus-visible{outline:2px solid var(--series-1); outline-offset:2px;}
 
+  /* ---------- company chooser ---------- */
+  .co-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:16px; margin-top:18px;}
+  .co-card{
+    display:flex; align-items:center; gap:16px; width:100%; text-align:left; font:inherit; color:var(--text-primary);
+    background:var(--surface-1); border:1px solid var(--border); border-radius:12px; padding:20px 20px;
+    box-shadow:var(--shadow); cursor:pointer;
+  }
+  .co-card:hover{border-color:var(--series-1);}
+  .co-card:focus-visible{outline:2px solid var(--series-1); outline-offset:2px;}
+  .co-card .brand-sq{width:46px; height:46px; border-radius:11px; font-size:17px;}
+  .co-name{font-family:"Zilla Slab",serif; font-weight:600; font-size:19px; line-height:1.2;}
+  .co-desc{font-size:12.5px; color:var(--muted); margin-top:3px;}
+  .co-arrow{margin-left:auto; color:var(--muted); font-size:20px; flex:none;}
+  .co-card:hover .co-arrow{color:var(--series-1);}
+  @media (max-width:640px){ .who-email{display:none;} }
+
   nav.section-nav{border-bottom:1px solid var(--border); background:var(--surface-1);}
   .section-nav .wrap{display:flex; gap:6px; overflow-x:auto; padding-block:9px;}
   .pill{
@@ -788,6 +804,77 @@
     </div>
   </div>
 
+  <div id="companies-view" hidden>
+    <header class="topbar">
+      <div class="wrap topbar-inner">
+        <div class="brand">
+          <div class="brand-sq">WL</div>
+          <div class="brand-text">
+            <div class="brand-name">Workforce Ledger</div>
+            <div class="brand-org">Companies</div>
+          </div>
+        </div>
+        <div class="who">
+          <span class="who-email" id="companies-who-email"></span>
+          <button class="btn-ghost js-signout" type="button">Sign out</button>
+        </div>
+      </div>
+    </header>
+    <main>
+      <div class="wrap">
+        <div class="panel-title" style="font-size:20px;font-family:'Zilla Slab',serif;">Choose a company</div>
+        <div class="panel-sub" style="margin-top:4px;">Pick the company you want to work in.</div>
+        <div class="co-grid">
+          <button type="button" class="co-card" data-company="ws">
+            <div class="brand-sq">WS</div>
+            <div>
+              <div class="co-name">Workforce Strategies</div>
+              <div class="co-desc">Finance, customers, invoices, payroll &amp; commissions</div>
+            </div>
+            <div class="co-arrow" aria-hidden="true">&rarr;</div>
+          </button>
+          <button type="button" class="co-card" data-company="alltruss">
+            <div class="brand-sq">AT</div>
+            <div>
+              <div class="co-name">All Truss</div>
+              <div class="co-desc">Tracking coming soon</div>
+            </div>
+            <div class="co-arrow" aria-hidden="true">&rarr;</div>
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="alltruss-view" hidden>
+    <header class="topbar">
+      <div class="wrap topbar-inner">
+        <div class="brand">
+          <div class="brand-sq">AT</div>
+          <div class="brand-text">
+            <div class="brand-name">All Truss</div>
+            <div class="brand-org">Workforce Ledger</div>
+          </div>
+        </div>
+        <div class="who">
+          <button class="btn-ghost js-companies-btn" type="button">&larr; Companies</button>
+          <span class="who-email" id="alltruss-who-email"></span>
+          <button class="btn-ghost js-signout" type="button">Sign out</button>
+        </div>
+      </div>
+    </header>
+    <main>
+      <div class="wrap">
+        <div class="panel-row" style="grid-template-columns:1fr;">
+          <section class="panel">
+            <div class="panel-title">All Truss</div>
+            <div class="panel-sub" style="margin-top:6px;">Nothing to track here yet. Sections for All Truss will be added to this page over time.</div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+
   <div id="dashboard-view" hidden>
     <header class="topbar">
       <div class="wrap topbar-inner">
@@ -799,6 +886,7 @@
           </div>
         </div>
         <div class="who">
+          <button class="btn-ghost js-companies-btn" type="button">&larr; Companies</button>
           <span class="who-email" id="who-email"></span>
           <button class="btn-ghost" id="signout-btn" type="button">Sign out</button>
         </div>
@@ -1409,7 +1497,7 @@
       </div>
     </main>
 
-    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build finance-v3</footer>
+    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build companies-v1</footer>
   </div>
 
 </div>
@@ -2720,18 +2808,58 @@ window.addEventListener("unhandledrejection", function(e){
     }
   });
 
-  signoutBtn.addEventListener("click", async function(){
-    await sb.auth.signOut();
+  Array.prototype.forEach.call(document.querySelectorAll(".js-signout"), function(b){
+    b.addEventListener("click", async function(){ await sb.auth.signOut(); });
+  });
+
+  // ---------- company chooser (landing page after sign-in) ----------
+  var companiesView = document.getElementById("companies-view");
+  var allTrussView = document.getElementById("alltruss-view");
+  var currentCompany = null;          // null = chooser, "ws" = Workforce Strategies, "alltruss" = All Truss
+  function setCompanyScreen(which){
+    currentCompany = which;
+    companiesView.hidden = (which !== null);
+    dashView.hidden = (which !== "ws");
+    allTrussView.hidden = (which !== "alltruss");
+    if(which === null && location.hash) history.replaceState(null, "", location.pathname + location.search);
+    window.scrollTo(0, 0);
+  }
+  function enterCompany(which){
+    setCompanyScreen(which);
+    if(which === "ws") showSection("home");
+  }
+  function setWhoEmail(email){
+    ["who-email", "companies-who-email", "alltruss-who-email"].forEach(function(id){
+      var el = document.getElementById(id); if(el) el.textContent = email || "";
+    });
+  }
+  function afterSignIn(){
+    if(currentCompany !== null) return;   // already inside a company (e.g. token refresh): leave the screen alone
+    if(location.hash.indexOf("#customer/") === 0){
+      // a direct link to a customer page goes straight into Workforce Strategies
+      setCompanyScreen("ws");
+      loadDashboard().then(renderHomeBankBalances); loadReminders(); handleInitialRoute();
+    }else{
+      setCompanyScreen(null);
+    }
+  }
+  Array.prototype.forEach.call(document.querySelectorAll(".co-card[data-company]"), function(b){
+    b.addEventListener("click", function(){ enterCompany(b.getAttribute("data-company")); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".js-companies-btn"), function(b){
+    b.addEventListener("click", function(){ setCompanyScreen(null); });
   });
 
   sb.auth.onAuthStateChange(function(event, session){
     if(session && session.user){
       loginView.hidden = true;
-      dashView.hidden = false;
-      whoEmail.textContent = session.user.email || "";
-      loadRole(session).then(function(){ loadDashboard().then(renderHomeBankBalances); loadReminders(); handleInitialRoute(); });
+      setWhoEmail(session.user.email);
+      loadRole(session).then(afterSignIn);
     }else{
       dashView.hidden = true;
+      companiesView.hidden = true;
+      allTrussView.hidden = true;
+      currentCompany = null;
       loginView.hidden = false;
       currentRole = "viewer";
     }
@@ -5854,9 +5982,9 @@ window.addEventListener("unhandledrejection", function(e){
   sb.auth.getSession().then(function(res){
     var session = res.data && res.data.session;
     if(session && session.user){
-      loginView.hidden = true; dashView.hidden = false;
-      whoEmail.textContent = session.user.email || "";
-      loadRole(session).then(function(){ loadDashboard().then(renderHomeBankBalances); loadReminders(); handleInitialRoute(); });
+      loginView.hidden = true;
+      setWhoEmail(session.user.email);
+      loadRole(session).then(afterSignIn);
     }
   });
 })();
