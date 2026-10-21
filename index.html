@@ -416,7 +416,7 @@
   footer.foot{padding-block:18px 40px; text-align:center; font-size:11.5px; color:var(--muted);}
 
   /* ---------- login ---------- */
-  #login-view{
+  #login-view, #setpw-view{
     flex:1; display:flex; align-items:center; justify-content:center; padding:24px;
   }
   .login-card{
@@ -426,7 +426,7 @@
   .login-mark{font-family:"Zilla Slab",serif; font-weight:600; font-size:20px; margin-bottom:4px;}
   .login-sub{font-size:13px; color:var(--text-secondary); margin-bottom:22px; line-height:1.5;}
   .field-label{font-size:12px; font-weight:500; color:var(--text-secondary); display:block; margin-bottom:6px;}
-  #login-email{
+  #login-email, #login-password, #setpw-new, #setpw-confirm{
     width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--border);
     background:var(--surface-1); color:var(--text-primary); font-size:14px; margin-bottom:12px;
   }
@@ -439,6 +439,7 @@
   .login-msg{font-size:12.5px; margin-top:13px; padding:9px 11px; border-radius:8px; display:none; line-height:1.5;}
   .login-msg.ok{display:block; background:color-mix(in srgb, var(--good) 12%, var(--surface-1)); color:var(--good);}
   .login-msg.err{display:block; background:color-mix(in srgb, var(--critical) 12%, var(--surface-1)); color:var(--critical);}
+  .login-link{background:none; border:none; padding:0; color:var(--series-1); font-size:13px; cursor:pointer; text-decoration:underline; font-family:inherit;}
   .login-foot{font-size:11.5px; color:var(--muted); margin-top:18px; line-height:1.5;}
 
   .login-alt{margin-top:16px; padding-top:14px; border-top:1px solid var(--border);}
@@ -783,16 +784,19 @@
   <div id="login-view">
     <div class="login-card">
       <div class="login-mark">Workforce Ledger <span style="color:var(--series-1)">Live</span></div>
-      <div class="login-sub">Sign in with your work email to view Workforce Strategies LLC's live finance data. We'll email you a one-time link — no password needed.</div>
+      <div class="login-sub">Sign in to view Workforce Strategies LLC's live finance data.</div>
       <form id="login-form">
         <label class="field-label" for="login-email">Work email</label>
-        <input id="login-email" type="email" inputmode="email" autocomplete="email" placeholder="you@tccpausa.com" required>
-        <button class="btn-primary" id="login-submit" type="submit">Send sign-in link</button>
+        <input id="login-email" type="email" inputmode="email" autocomplete="username" placeholder="you@tccpausa.com" required>
+        <label class="field-label" for="login-password">Password</label>
+        <input id="login-password" type="password" autocomplete="current-password" required>
+        <button class="btn-primary" id="login-submit" type="submit">Sign in</button>
       </form>
+      <div style="margin-top:12px;"><button type="button" class="login-link" id="login-forgot">Forgot your password, or first time here? Email me a link to set it.</button></div>
       <div class="login-msg" id="login-msg" role="status"></div>
 
       <div class="login-alt" id="login-alt">
-        <span class="login-alt-toggle" id="login-alt-toggle" role="button" tabindex="0">Clicked the email link and got a browser error instead of this dashboard?</span>
+        <span class="login-alt-toggle" id="login-alt-toggle" role="button" tabindex="0">Clicked the emailed link and got a browser error instead of the site?</span>
         <div class="login-alt-body" id="login-alt-body" hidden>
           <div class="login-foot" style="margin-top:0; margin-bottom:10px;">That's expected on this version — the link still worked. Go back to that error page, copy the full web address from the address bar (it will be long and start with "localhost"), and paste it here:</div>
           <input id="login-paste" type="text" autocomplete="off" placeholder="Paste the web address here">
@@ -800,7 +804,23 @@
         </div>
       </div>
 
-      <div class="login-foot">Access is restricted to whoever you invite in Supabase Auth. The link expires after one use.</div>
+      <div class="login-foot">Access is restricted to people who have been added by an administrator. Emailed links expire after one use.</div>
+    </div>
+  </div>
+
+  <div id="setpw-view" hidden>
+    <div class="login-card">
+      <div class="login-mark">Set your password</div>
+      <div class="login-sub" id="setpw-sub">Choose a password for signing in with your email. Use at least 8 characters.</div>
+      <form id="setpw-form">
+        <label class="field-label" for="setpw-new">New password</label>
+        <input id="setpw-new" type="password" autocomplete="new-password" minlength="8" required>
+        <label class="field-label" for="setpw-confirm">Confirm new password</label>
+        <input id="setpw-confirm" type="password" autocomplete="new-password" minlength="8" required>
+        <button class="btn-primary" id="setpw-submit" type="submit">Save password</button>
+      </form>
+      <div class="login-msg" id="setpw-msg" role="status"></div>
+      <div style="margin-top:14px;"><button type="button" class="login-link" id="setpw-skip">Skip for now</button></div>
     </div>
   </div>
 
@@ -816,6 +836,7 @@
         </div>
         <div class="who">
           <span class="who-email" id="companies-who-email"></span>
+          <button class="btn-ghost js-open-setpw" type="button">Password</button>
           <button class="btn-ghost js-signout" type="button">Sign out</button>
         </div>
       </div>
@@ -1610,7 +1631,7 @@
       </div>
     </main>
 
-    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build weekly-v4</footer>
+    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build login-v1</footer>
   </div>
 
 </div>
@@ -2803,6 +2824,7 @@ window.addEventListener("unhandledrejection", function(e){
 
   var SUPABASE_URL = "https://uxnkwkqtoszespuymahy.supabase.co";
   var SUPABASE_ANON_KEY = "sb_publishable_wRsuA2p7xvNmpYsaBQmJtA_-OW57H7j";
+  var WL_RECOVERY = /[#&?]type=recovery/.test(window.location.hash + window.location.search);   // opened from a password-reset email
   var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   // ---------- role (admin vs. viewer) ----------
@@ -2850,25 +2872,43 @@ window.addEventListener("unhandledrejection", function(e){
     if(e.key === "Enter" || e.key === " "){ e.preventDefault(); setAltOpen(loginAltBody.hidden); }
   });
 
+  var loginPassword = document.getElementById("login-password");
   loginForm.addEventListener("submit", async function(e){
     e.preventDefault();
     var email = loginEmail.value.trim();
-    if(!email) return;
+    var password = loginPassword.value;
+    if(!email || !password) return;
     loginSubmit.disabled = true;
-    loginSubmit.textContent = "Sending…";
+    loginSubmit.textContent = "Signing in…";
+    loginMsg.className = "login-msg";
     try{
-      var res = await sb.auth.signInWithOtp({
-        email: email,
-        options: { emailRedirectTo: window.location.href }
-      });
+      var res = await sb.auth.signInWithPassword({ email: email, password: password });
       if(res.error) throw res.error;
-      showMsg(loginMsg, "Check " + email + " for a sign-in link. If clicking it shows a browser error page instead of this dashboard, come back here and use “Clicked the email link and got a browser error” below.", "ok");
+      loginPassword.value = "";
+    }catch(err){
+      var m = (err && err.message) || "";
+      if(/invalid login credentials/i.test(m)) m = "That email and password don't match. If you haven't set a password yet, or forgot it, use the link below to email yourself one.";
+      else if(/email not confirmed/i.test(m)) m = "This email hasn't been confirmed yet. Use the link below to email yourself a link, then set your password.";
+      showMsg(loginMsg, m || "Couldn't sign in. Try again in a moment.", "err");
+    }finally{
+      loginSubmit.disabled = false;
+      loginSubmit.textContent = "Sign in";
+    }
+  });
+
+  document.getElementById("login-forgot").addEventListener("click", async function(){
+    var email = loginEmail.value.trim();
+    if(!email){ showMsg(loginMsg, "Type your work email above first, then click this link.", "err"); loginEmail.focus(); return; }
+    var btn = this; btn.disabled = true;
+    try{
+      var res = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
+      if(res.error) throw res.error;
+      showMsg(loginMsg, "If " + email + " has an account, a link is on its way. Click it, then choose your password. If the link shows a browser error instead of the site, use the box below.", "ok");
       setAltOpen(true);
     }catch(err){
       showMsg(loginMsg, (err && err.message) ? err.message : "Couldn't send the link. Try again in a moment.", "err");
     }finally{
-      loginSubmit.disabled = false;
-      loginSubmit.textContent = "Send sign-in link";
+      btn.disabled = false;
     }
   });
 
@@ -2910,6 +2950,7 @@ window.addEventListener("unhandledrejection", function(e){
     loginPasteBtn.disabled = true;
     loginPasteBtn.textContent = "Signing in…";
     try{
+      if(/type=recovery/.test(loginPaste.value)) WL_RECOVERY = true;
       var res = await sb.auth.setSession({ access_token: tokens.access_token, refresh_token: tokens.refresh_token });
       if(res.error) throw res.error;
       showMsg(loginMsg, "Signed in.", "ok");
@@ -2929,8 +2970,10 @@ window.addEventListener("unhandledrejection", function(e){
   var companiesView = document.getElementById("companies-view");
   var allTrussView = document.getElementById("alltruss-view");
   var currentCompany = null;          // null = chooser, "ws" = Workforce Strategies, "alltruss" = All Truss
+  var setpwView = document.getElementById("setpw-view");
   function setCompanyScreen(which){
     currentCompany = which;
+    setpwView.hidden = (which !== "setpw");
     companiesView.hidden = (which !== null);
     dashView.hidden = (which !== "ws");
     allTrussView.hidden = (which !== "alltruss");
@@ -2946,7 +2989,17 @@ window.addEventListener("unhandledrejection", function(e){
       var el = document.getElementById(id); if(el) el.textContent = email || "";
     });
   }
+  function openSetPassword(first){
+    document.getElementById("setpw-form").reset();
+    document.getElementById("setpw-msg").className = "login-msg";
+    document.getElementById("setpw-sub").textContent = first
+      ? "You're signed in from your email link. Choose a password so you can sign in with your email and password from now on. Use at least 8 characters."
+      : "Choose a new password for signing in with your email. Use at least 8 characters.";
+    setCompanyScreen("setpw");
+    document.getElementById("setpw-new").focus();
+  }
   function afterSignIn(){
+    if(WL_RECOVERY && currentCompany === null){ WL_RECOVERY = false; openSetPassword(true); return; }
     if(currentCompany !== null) return;   // already inside a company (e.g. token refresh): leave the screen alone
     if(location.hash.indexOf("#customer/") === 0){
       // a direct link to a customer page goes straight into Workforce Strategies
@@ -2959,16 +3012,43 @@ window.addEventListener("unhandledrejection", function(e){
   Array.prototype.forEach.call(document.querySelectorAll(".co-card[data-company]"), function(b){
     b.addEventListener("click", function(){ enterCompany(b.getAttribute("data-company")); });
   });
+  Array.prototype.forEach.call(document.querySelectorAll(".js-open-setpw"), function(b){
+    b.addEventListener("click", function(){ openSetPassword(false); });
+  });
+  document.getElementById("setpw-skip").addEventListener("click", function(){ setCompanyScreen(null); });
+  document.getElementById("setpw-form").addEventListener("submit", async function(e){
+    e.preventDefault();
+    var pw = document.getElementById("setpw-new").value, pw2 = document.getElementById("setpw-confirm").value;
+    var msgEl = document.getElementById("setpw-msg"), btn = document.getElementById("setpw-submit");
+    if(pw.length < 8){ showMsg(msgEl, "Use at least 8 characters.", "err"); return; }
+    if(pw !== pw2){ showMsg(msgEl, "The two passwords don't match.", "err"); return; }
+    btn.disabled = true; btn.textContent = "Saving…";
+    try{
+      var res = await sb.auth.updateUser({ password: pw });
+      if(res.error) throw res.error;
+      showMsg(msgEl, "Password saved. Next time, sign in with your email and this password.", "ok");
+      setTimeout(function(){ if(currentCompany === "setpw") setCompanyScreen(null); }, 1500);
+    }catch(err){
+      showMsg(msgEl, (err && err.message) ? err.message : "Couldn't save the password. Try again.", "err");
+    }finally{
+      btn.disabled = false; btn.textContent = "Save password";
+    }
+  });
   Array.prototype.forEach.call(document.querySelectorAll(".js-companies-btn"), function(b){
     b.addEventListener("click", function(){ setCompanyScreen(null); });
   });
 
   sb.auth.onAuthStateChange(function(event, session){
+    if(event === "PASSWORD_RECOVERY") WL_RECOVERY = true;
     if(session && session.user){
       loginView.hidden = true;
       setWhoEmail(session.user.email);
-      loadRole(session).then(afterSignIn);
+      loadRole(session).then(function(){
+        if(WL_RECOVERY && currentCompany !== "setpw"){ WL_RECOVERY = false; openSetPassword(true); }
+        else afterSignIn();
+      });
     }else{
+      setpwView.hidden = true;
       dashView.hidden = true;
       companiesView.hidden = true;
       allTrussView.hidden = true;
