@@ -1331,7 +1331,7 @@
               <div class="panel-head">
                 <div>
                   <div class="panel-title">Weekly update</div>
-                  <div class="panel-sub">Each week, work down this page: payroll &amp; commissions (this section), then invoices, placements &amp; workers comp, and the balance sheet. Everything is computed here in your browser &mdash; nothing is written until you review the preview and click the save button for that section.</div>
+                  <div class="panel-sub">Add all of this week&rsquo;s files, click <strong>Review everything</strong> (bottom of the page) to see what will change, then <strong>Update everything</strong> to save it all at once. Everything is read in your browser &mdash; nothing is written until you click Update everything.</div>
                 </div>
               </div>
 
@@ -1352,13 +1352,31 @@
                   <input type="file" id="upl-wc-file" accept=".xlsx,.xls">
                 </div>
                 <div class="crud-field">
-                  <label for="upl-tower-files">Invoice PDFs: Tower (3), Timber Creek, Magic Coil, Midland &mdash; choose all six (optional)</label>
+                  <label for="upl-tower-files">Invoice PDFs: Tower (3), Timber Creek, Magic Coil, Midland (at least one)</label>
                   <input type="file" id="upl-tower-files" accept=".pdf" multiple>
                 </div>
               </div>
 
-              <div class="row-actions" style="margin-top:10px;">
-                <button type="button" class="btn-primary" id="upl-parse-btn">Parse &amp; preview</button>
+              <div class="upl-row">
+                <div class="crud-field">
+                  <label for="inv-file">QuickBooks Invoice List by Date (.xlsx)</label>
+                  <input type="file" id="inv-file" accept=".xlsx,.xls,.csv">
+                </div>
+                <div class="crud-field">
+                  <label for="bs-file">QuickBooks Balance Sheet (.xlsx)</label>
+                  <input type="file" id="bs-file" accept=".xlsx,.xls,.csv">
+                </div>
+              </div>
+
+              <div class="upl-row">
+                <div class="crud-field">
+                  <label for="inv-from">Only add invoices dated on or after (optional)</label>
+                  <input type="date" id="inv-from">
+                </div>
+                <div class="crud-field">
+                  <label for="bs-date">Balance sheet as-of date (filled from the file)</label>
+                  <input type="date" id="bs-date">
+                </div>
               </div>
 
               <div class="login-msg err" id="upl-err" style="display:none; margin-top:12px;"></div>
@@ -1381,7 +1399,7 @@
                       <th>Company</th><th>Customer</th><th>Location</th><th>State</th>
                       <th class="num-col">Sales</th><th class="num-col">Wages</th><th class="num-col">Payroll taxes</th>
                       <th class="num-col">Workers comp</th><th class="num-col">Commissions</th>
-                      <th class="num-col">Total payroll cost</th><th class="num-col">Gross profit</th>
+                      <th class="num-col">Total payroll cost</th><th class="num-col">Gross profit</th><th class="num-col">Headcount</th>
                     </tr></thead>
                     <tbody></tbody>
                   </table>
@@ -1433,7 +1451,7 @@
             </div>
 
             <div class="row-actions" style="margin:4px 0 20px;">
-              <button type="button" class="btn-primary" id="upl-submit-btn">Submit to database</button>
+              <button type="button" class="btn-primary" id="upl-submit-btn" hidden style="display:none">Submit to database</button>
               <span id="upl-submit-status" style="margin-left:10px; color:var(--text-secondary); font-size:13px;"></span>
             </div>
           </div>
@@ -1443,21 +1461,8 @@
               <div class="panel-head">
                 <div>
                   <div class="panel-title">Invoices</div>
-                  <div class="panel-sub">Upload the QuickBooks <em>Invoice List by Date</em> export (.xlsx). New invoices are added to the Invoices tab; ones already there (same invoice number and customer) are skipped, so it is safe to upload the same list twice. Customers are matched by name &mdash; any that don&rsquo;t match you can pick yourself.</div>
+                  <div class="panel-sub">From the QuickBooks <em>Invoice List by Date</em> file. New invoices are added to the Invoices tab; ones already there (same invoice number and customer) are skipped, so it is safe to upload the same list twice. Customers are matched by name &mdash; any that don&rsquo;t match you can pick yourself.</div>
                 </div>
-              </div>
-              <div class="upl-row">
-                <div class="crud-field">
-                  <label for="inv-file">Invoice List by Date (.xlsx)</label>
-                  <input type="file" id="inv-file" accept=".xlsx,.xls,.csv">
-                </div>
-                <div class="crud-field">
-                  <label for="inv-from">Only invoices dated on or after (optional)</label>
-                  <input type="date" id="inv-from">
-                </div>
-              </div>
-              <div class="row-actions" style="margin-top:10px;">
-                <button type="button" class="btn-primary" id="inv-parse-btn">Read invoices</button>
               </div>
               <div class="login-msg err" id="inv-err" style="display:none; margin-top:12px;"></div>
               <div id="inv-warn" style="display:none; margin-top:12px; color:var(--text-secondary); font-size:13px;"></div>
@@ -1481,7 +1486,7 @@
                 </div>
                 <div class="panel-sub" id="inv-more" style="margin-top:6px;"></div>
                 <div class="row-actions" style="margin-top:12px;">
-                  <button type="button" class="btn-primary" id="inv-save-btn">Add invoices</button>
+                  <button type="button" class="btn-primary" id="inv-save-btn" hidden style="display:none">Add invoices</button>
                   <span id="inv-status" style="margin-left:10px; color:var(--text-secondary); font-size:13px;"></span>
                 </div>
               </div>
@@ -1493,20 +1498,13 @@
               <div class="panel-head">
                 <div>
                   <div class="panel-title">Placements &amp; workers comp</div>
-                  <div class="panel-sub">Builds this week&rsquo;s list of active employees (with state and WC class code) from the per-employee WC/state report and updates the Placements tab. By default it uses the WC/state file chosen under Payroll above; choose a different one here only if you need to. The week-ending date above is stamped as &ldquo;last confirmed active&rdquo;.</div>
+                  <div class="panel-sub">Builds this week&rsquo;s list of active employees (with state and WC class code) from the per-employee WC/state report and updates the Placements tab. It uses the WC/state file chosen at the top. The week-ending date at the top is stamped as &ldquo;last confirmed active&rdquo;.</div>
                 </div>
               </div>
               <div class="upl-row">
                 <div class="crud-field">
-                  <label for="plc-up-file">Per-employee WC/state report (.xlsx) &mdash; optional here</label>
-                  <input type="file" id="plc-up-file" accept=".xlsx,.xls">
-                </div>
-                <div class="crud-field" style="justify-content:flex-end;">
                   <label style="display:flex;gap:8px;align-items:center;font-size:13px;"><input type="checkbox" id="plc-up-end" checked> Mark workers not on this sheet as Ended</label>
                 </div>
-              </div>
-              <div class="row-actions" style="margin-top:10px;">
-                <button type="button" class="btn-primary" id="plc-up-parse-btn">Build placement sheet</button>
               </div>
               <div class="login-msg err" id="plc-up-err" style="display:none; margin-top:12px;"></div>
               <div id="plc-up-warn" style="display:none; margin-top:12px; color:var(--text-secondary); font-size:13px;"></div>
@@ -1520,7 +1518,7 @@
                   </table>
                 </div>
                 <div class="row-actions" style="margin-top:12px;">
-                  <button type="button" class="btn-primary" id="plc-up-save-btn">Update placements</button>
+                  <button type="button" class="btn-primary" id="plc-up-save-btn" hidden style="display:none">Update placements</button>
                   <span id="plc-up-status" style="margin-left:10px; color:var(--text-secondary); font-size:13px;"></span>
                 </div>
               </div>
@@ -1532,21 +1530,8 @@
               <div class="panel-head">
                 <div>
                   <div class="panel-title">Balance sheet (bank balances, cash, AR, AP)</div>
-                  <div class="panel-sub">Upload the QuickBooks Balance Sheet export (.xlsx). This feeds the bank balances on the Home screen and the Cash / AR / AP tiles on Finance overview. It is separate from the payroll upload above &mdash; nothing is saved until you review it and click Save.</div>
+                  <div class="panel-sub">From the QuickBooks Balance Sheet file. This feeds the bank balances on the Home screen and the Cash / AR / AP tiles on Finance overview.</div>
                 </div>
-              </div>
-              <div class="upl-row">
-                <div class="crud-field">
-                  <label for="bs-file">Balance Sheet (.xlsx)</label>
-                  <input type="file" id="bs-file" accept=".xlsx,.xls,.csv">
-                </div>
-                <div class="crud-field">
-                  <label for="bs-date">As of (Saturday accrual date)</label>
-                  <input type="date" id="bs-date">
-                </div>
-              </div>
-              <div class="row-actions" style="margin-top:10px;">
-                <button type="button" class="btn-primary" id="bs-parse-btn">Read balance sheet</button>
               </div>
               <div class="login-msg err" id="bs-err" style="display:none; margin-top:12px;"></div>
               <div id="bs-warn" style="display:none; margin-top:12px; color:var(--text-secondary); font-size:13px;"></div>
@@ -1559,11 +1544,21 @@
                   </table>
                 </div>
                 <div class="row-actions" style="margin-top:12px;">
-                  <button type="button" class="btn-primary" id="bs-save-btn">Save balance sheet</button>
+                  <button type="button" class="btn-primary" id="bs-save-btn" hidden style="display:none">Save balance sheet</button>
                   <span id="bs-status" style="margin-left:10px; color:var(--text-secondary); font-size:13px;"></span>
                 </div>
               </div>
             </section>
+          </div>
+
+          <div id="upl-bar" style="position:sticky; bottom:0; z-index:15; background:var(--surface-1); border:1px solid var(--border); border-radius:12px; padding:12px 16px; margin-top:16px; box-shadow:var(--shadow);">
+            <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+              <button type="button" class="btn-primary" id="upl-review-btn" disabled style="width:auto; flex:1 1 200px;">Review everything</button>
+              <button type="button" class="btn-primary" id="upl-all-btn" disabled style="width:auto; flex:1 1 200px;">Update everything</button>
+              <span id="upl-bar-msg" style="font-size:13px; color:var(--text-secondary);"></span>
+            </div>
+            <div id="upl-bar-results" style="margin-top:8px; font-size:13px; display:none;"></div>
+            <span hidden style="display:none"><button type="button" id="upl-parse-btn"></button><button type="button" id="inv-parse-btn"></button><button type="button" id="plc-up-parse-btn"></button><button type="button" id="bs-parse-btn"></button></span>
           </div>
         </div>
 
@@ -1609,7 +1604,7 @@
       </div>
     </main>
 
-    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build weekly-v2</footer>
+    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build weekly-v3</footer>
   </div>
 
 </div>
@@ -5681,6 +5676,7 @@ window.addEventListener("unhandledrejection", function(e){
     warnBox.style.display = "none"; warnBox.innerHTML = "";
     document.getElementById("upl-preview").hidden = true;
 
+    uplPayrollRows = []; uplFsgRows = []; uplPdfInfo = {};
     var checkDate = document.getElementById("upl-week-input").value;
     if(!checkDate){ errBox.textContent = "Set the week ending (check date) first."; errBox.style.display = "block"; return; }
 
@@ -5993,7 +5989,8 @@ window.addEventListener("unhandledrejection", function(e){
         '<td class="num-col num">'+fmtUSD(p.workers_comp)+'</td>'+
         '<td class="num-col num">'+fmtUSD(p.commissions)+'</td>'+
         '<td class="num-col num">'+fmtUSD(p.total_payroll_cost)+'</td>'+
-        '<td class="num-col num">'+fmtUSD(p.gross_profit)+'</td>';
+        '<td class="num-col num">'+fmtUSD(p.gross_profit)+'</td>'+
+        '<td class="num-col num">'+(p.headcount !== null && p.headcount !== undefined ? p.headcount : "\u2014")+'</td>';
       pBody.appendChild(tr);
     });
     document.getElementById("upl-payroll-sub").textContent = uplPayrollRows.length + " location row(s) for week ending " + fmtDate(document.getElementById("upl-week-input").value);
@@ -6025,7 +6022,7 @@ window.addEventListener("unhandledrejection", function(e){
   async function uplSubmit(){
     var statusEl = document.getElementById("upl-submit-status");
     var btn = document.getElementById("upl-submit-btn");
-    if(!uplPayrollRows.length){ return; }
+    if(!uplPayrollRows.length){ return false; }
     btn.disabled = true; btn.textContent = "Submitting…"; statusEl.textContent = "";
     try{
       var payRes = await sb.from("payroll_data").upsert(uplPayrollRows, { onConflict: "id" });
@@ -6041,9 +6038,11 @@ window.addEventListener("unhandledrejection", function(e){
       statusEl.textContent = "Saved " + uplPayrollRows.length + " payroll row(s) and " + uplFsgRows.length + " FSG row(s).";
       statusEl.style.color = "var(--good)";
       refreshPayroll();
+      return true;
     }catch(err){
       statusEl.textContent = "Couldn't save: " + ((err && err.message) || "unknown error");
       statusEl.style.color = "var(--critical)";
+      return false;
     }finally{
       btn.disabled = false; btn.textContent = "Submit to database";
     }
@@ -6227,7 +6226,7 @@ window.addEventListener("unhandledrejection", function(e){
     document.getElementById("inv-save-btn").disabled = !newRows.length;
   }
   async function invSave(){
-    var d = invParsed; if(!d) return;
+    var d = invParsed; if(!d) return false;
     var statusEl = document.getElementById("inv-status"), btn = document.getElementById("inv-save-btn");
     var rows = [], skipped = 0;
     d.list.forEach(function(x){
@@ -6241,7 +6240,7 @@ window.addEventListener("unhandledrejection", function(e){
         notes: "Imported from QuickBooks. QB customer: " + x.qbName + (x.due ? ". Due " + x.due : "")
       });
     });
-    if(!rows.length){ statusEl.textContent = "Nothing to add."; statusEl.style.color = "var(--text-secondary)"; return; }
+    if(!rows.length){ statusEl.textContent = "Nothing to add."; statusEl.style.color = "var(--text-secondary)"; return true; }
     btn.disabled = true; btn.textContent = "Adding…"; statusEl.textContent = ""; statusEl.style.color = "var(--text-secondary)";
     try{
       for(var i=0; i<rows.length; i+=200){
@@ -6254,9 +6253,11 @@ window.addEventListener("unhandledrejection", function(e){
       d.list.forEach(function(x){ if(x._status === "new" && invCustomerFor(x)) x.customerId = invCustomerFor(x); });
       invRender();
       refreshInvoices();
+      return true;
     }catch(err){
       statusEl.textContent = "Couldn't save: " + ((err && err.message) || "unknown error");
       statusEl.style.color = "var(--critical)";
+      return false;
     }finally{
       btn.disabled = false; btn.textContent = "Add invoices";
     }
@@ -6304,8 +6305,8 @@ window.addEventListener("unhandledrejection", function(e){
     try{
       var checkDate = document.getElementById("upl-week-input").value;
       if(!checkDate) throw new Error("Set the week ending (check date) at the top of this page first.");
-      var f = document.getElementById("plc-up-file").files[0] || document.getElementById("upl-wc-file").files[0];
-      if(!f) throw new Error("Choose the per-employee WC/state report — either here or in the Payroll section above.");
+      var f = document.getElementById("upl-wc-file").files[0];
+      if(!f) throw new Error("Choose the per-employee WC/state report first.");
       var ref = await loadUplRefData();
       var parsed = await parseWcReportFile(f);
       var customers = await fetchAllRows("customers", "id,name,office_code,company_id", function(q){ return q.eq("is_deleted", false); });
@@ -6388,7 +6389,7 @@ window.addEventListener("unhandledrejection", function(e){
     }
   }
   async function plcUpSave(){
-    var d = plcUp; if(!d) return;
+    var d = plcUp; if(!d) return false;
     var statusEl = document.getElementById("plc-up-status"), btn = document.getElementById("plc-up-save-btn");
     var endIt = document.getElementById("plc-up-end").checked;
     btn.disabled = true; btn.textContent = "Saving…"; statusEl.textContent = ""; statusEl.style.color = "var(--text-secondary)";
@@ -6418,9 +6419,11 @@ window.addEventListener("unhandledrejection", function(e){
       statusEl.style.color = "var(--good)";
       plcUp = null;
       refreshPlacements();
+      return true;
     }catch(err){
       statusEl.textContent = "Couldn't save: " + ((err && err.message) || "unknown error");
       statusEl.style.color = "var(--critical)";
+      return false;
     }finally{
       btn.disabled = false; btn.textContent = "Update placements";
     }
@@ -6518,7 +6521,7 @@ window.addEventListener("unhandledrejection", function(e){
       var res = parseBalanceSheetRows(rows);
       var dateEl = document.getElementById("bs-date");
       if(res.date) dateEl.value = res.date;
-      if(!dateEl.value) throw new Error("Couldn't find the as-of date in the file \u2014 pick it in the \"As of\" box and click Read again.");
+      if(!dateEl.value) throw new Error("Couldn't find the as-of date in the file \u2014 enter it in the \"Balance sheet as-of date\" box at the top and click Review everything again.");
       bsParsed = res;
       var kp = document.getElementById("bs-kpis");
       kp.innerHTML = "";
@@ -6544,9 +6547,9 @@ window.addEventListener("unhandledrejection", function(e){
   }
   async function bsSave(){
     var statusEl = document.getElementById("bs-status"), btn = document.getElementById("bs-save-btn");
-    if(!bsParsed) return;
+    if(!bsParsed) return false;
     var date = document.getElementById("bs-date").value;
-    if(!date){ statusEl.textContent = "Pick the as-of date first."; statusEl.style.color = "var(--critical)"; return; }
+    if(!date){ statusEl.textContent = "Pick the as-of date first."; statusEl.style.color = "var(--critical)"; return false; }
     btn.disabled = true; btn.textContent = "Saving\u2026"; statusEl.textContent = ""; statusEl.style.color = "var(--text-secondary)";
     try{
       var row = { cash: bsParsed.cash, bank_accounts: bsParsed.accounts };
@@ -6561,12 +6564,98 @@ window.addEventListener("unhandledrejection", function(e){
       statusEl.textContent = "Saved balances for " + fmtDateFull(date) + ".";
       statusEl.style.color = "var(--good)";
       try{ var rows = await fetchFinRows(); notifyFin(rows); renderHomeBankBalances(); }catch(e){ console.error(e); }
+      return true;
     }catch(err){
       statusEl.textContent = "Couldn't save: " + ((err && err.message) || "unknown error");
       statusEl.style.color = "var(--critical)";
+      return false;
     }finally{
       btn.disabled = false; btn.textContent = "Save balance sheet";
     }
+  }
+
+  // ====================================================================
+  // One review + one update for the whole weekly page
+  // ====================================================================
+  var uplReviewed = false, uplBusy = false;
+  function uplMissingFiles(){
+    var miss = [];
+    function none(id){ var el = document.getElementById(id); return !el || !el.files || !el.files.length; }
+    if(!document.getElementById("upl-week-input").value) miss.push("week ending date");
+    if(none("upl-payroll-file")) miss.push("payroll report");
+    if(none("upl-wc-file")) miss.push("WC/state report");
+    if(none("upl-tower-files")) miss.push("invoice PDF(s)");
+    if(none("inv-file")) miss.push("invoice list");
+    if(none("bs-file")) miss.push("balance sheet");
+    return miss;
+  }
+  function uplRefreshBar(){
+    var miss = uplMissingFiles();
+    document.getElementById("upl-review-btn").disabled = uplBusy || miss.length > 0;
+    document.getElementById("upl-all-btn").disabled = uplBusy || !uplReviewed;
+    var msg = document.getElementById("upl-bar-msg");
+    if(uplBusy) return;
+    if(miss.length) msg.textContent = "Still needed: " + miss.join(", ") + ".";
+    else if(!uplReviewed) msg.textContent = "All files added. Click Review everything.";
+    else msg.textContent = "Reviewed. Check the sections above, then click Update everything.";
+  }
+  function uplInvalidate(){
+    if(uplReviewed){ uplReviewed = false; }
+    uplRefreshBar();
+  }
+  async function uplReviewAll(){
+    if(uplBusy) return;
+    var res = document.getElementById("upl-bar-results");
+    res.style.display = "none"; res.innerHTML = "";
+    uplBusy = true; uplReviewed = false;
+    document.getElementById("upl-review-btn").disabled = true; document.getElementById("upl-all-btn").disabled = true;
+    document.getElementById("upl-bar-msg").textContent = "Reading all files\u2026";
+    try{
+      await uplComputePreview();
+      var payOk = uplPayrollRows.length > 0 && document.getElementById("upl-err").style.display === "none";
+      await invRead();
+      var invOk = !!invParsed;
+      await plcUpRead();
+      var plcOk = !!plcUp;
+      await bsRead();
+      var bsOk = !!bsParsed;
+      var bad = [];
+      if(!payOk) bad.push("payroll"); if(!invOk) bad.push("invoices"); if(!plcOk) bad.push("placements"); if(!bsOk) bad.push("balance sheet");
+      uplReviewed = bad.length === 0;
+      var msg = document.getElementById("upl-bar-msg");
+      if(bad.length){
+        msg.textContent = "Fix the problem in: " + bad.join(", ") + " (see the red message in that section), then review again.";
+        var firstErr = document.querySelector("#upl-err[style*='block'], #inv-err[style*='block'], #plc-up-err[style*='block'], #bs-err[style*='block']");
+        if(firstErr && firstErr.scrollIntoView) firstErr.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }catch(e){
+      document.getElementById("upl-bar-msg").textContent = "Couldn't review: " + ((e && e.message) || "unknown error");
+    }finally{
+      uplBusy = false;
+      var m = document.getElementById("upl-bar-msg"), keep = m.textContent;
+      uplRefreshBar();
+      if(!uplReviewed && /^(Fix|Couldn)/.test(keep)) m.textContent = keep;
+    }
+  }
+  async function uplUpdateAll(){
+    if(uplBusy || !uplReviewed) return;
+    uplBusy = true;
+    document.getElementById("upl-review-btn").disabled = true; document.getElementById("upl-all-btn").disabled = true;
+    var msg = document.getElementById("upl-bar-msg"), res = document.getElementById("upl-bar-results");
+    msg.textContent = "Saving everything\u2026"; res.style.display = "block"; res.innerHTML = "";
+    var steps = [["Payroll & commissions", uplSubmit], ["Invoices", invSave], ["Placements", plcUpSave], ["Balance sheet", bsSave]];
+    var failed = 0, lines = [];
+    for(var i=0; i<steps.length; i++){
+      var ok = false;
+      try{ ok = await steps[i][1](); }catch(e){ ok = false; }
+      if(!ok) failed++;
+      lines.push('<div style="color:' + (ok ? "var(--good)" : "var(--critical)") + ';">' + (ok ? "\u2713 " : "\u2717 ") + escHtml(steps[i][0]) + (ok ? " saved" : " did not save \u2014 see that section") + "</div>");
+      res.innerHTML = lines.join("");
+    }
+    uplBusy = false;
+    uplReviewed = false;
+    uplRefreshBar();
+    msg.textContent = failed ? failed + " section(s) did not save. Fix the problem and review again; the ones that saved are safe to save again." : "Everything saved. The Payroll, Invoices, Placements, Home and Finance pages now show this week.";
   }
 
   function initUploadSection(){
@@ -6583,14 +6672,16 @@ window.addEventListener("unhandledrejection", function(e){
       d.setDate(d.getDate() - diff);
       weekInput.value = d.toISOString().slice(0,10);
     }
-    document.getElementById("upl-parse-btn").addEventListener("click", uplComputePreview);
+    document.getElementById("upl-review-btn").addEventListener("click", uplReviewAll);
+    document.getElementById("upl-all-btn").addEventListener("click", uplUpdateAll);
+    ["upl-week-input","upl-payroll-file","upl-wc-file","upl-tower-files","inv-file","bs-file","inv-from","bs-date","plc-up-end"].forEach(function(id){
+      var el = document.getElementById(id); if(el) el.addEventListener("change", uplInvalidate);
+    });
+    uplRefreshBar();
     document.getElementById("upl-submit-btn").addEventListener("click", uplSubmit);
     document.getElementById("upl-qb-csv-btn").addEventListener("click", uplQbDownload);
-    document.getElementById("inv-parse-btn").addEventListener("click", invRead);
     document.getElementById("inv-save-btn").addEventListener("click", invSave);
-    document.getElementById("plc-up-parse-btn").addEventListener("click", plcUpRead);
     document.getElementById("plc-up-save-btn").addEventListener("click", plcUpSave);
-    document.getElementById("bs-parse-btn").addEventListener("click", bsRead);
     document.getElementById("bs-save-btn").addEventListener("click", bsSave);
   }
 
