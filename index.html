@@ -1278,6 +1278,45 @@
             </section>
           </div>
 
+          <div class="panel-row" style="grid-template-columns:1fr;">
+            <section class="panel" id="bs-panel">
+              <div class="panel-head">
+                <div>
+                  <div class="panel-title">Balance sheet (bank balances, cash, AR, AP)</div>
+                  <div class="panel-sub">Upload the QuickBooks Balance Sheet export (.xlsx). This feeds the bank balances on the Home screen and the Cash / AR / AP tiles on Finance overview. It is separate from the payroll upload above &mdash; nothing is saved until you review it and click Save.</div>
+                </div>
+              </div>
+              <div class="upl-row">
+                <div class="crud-field">
+                  <label for="bs-file">Balance Sheet (.xlsx)</label>
+                  <input type="file" id="bs-file" accept=".xlsx,.xls,.csv">
+                </div>
+                <div class="crud-field">
+                  <label for="bs-date">As of (Saturday accrual date)</label>
+                  <input type="date" id="bs-date">
+                </div>
+              </div>
+              <div class="row-actions" style="margin-top:10px;">
+                <button type="button" class="btn-primary" id="bs-parse-btn">Read balance sheet</button>
+              </div>
+              <div class="login-msg err" id="bs-err" style="display:none; margin-top:12px;"></div>
+              <div id="bs-warn" style="display:none; margin-top:12px; color:var(--text-secondary); font-size:13px;"></div>
+              <div id="bs-preview" hidden style="margin-top:14px;">
+                <div class="kpi-grid" id="bs-kpis"></div>
+                <div class="table-scroll" style="margin-top:12px;">
+                  <table class="data-table" id="bs-table">
+                    <thead><tr><th>Bank account</th><th>Code</th><th class="num-col">Balance</th></tr></thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+                <div class="row-actions" style="margin-top:12px;">
+                  <button type="button" class="btn-primary" id="bs-save-btn">Save balance sheet</button>
+                  <span id="bs-status" style="margin-left:10px; color:var(--text-secondary); font-size:13px;"></span>
+                </div>
+              </div>
+            </section>
+          </div>
+
           <div id="upl-preview" hidden>
             <div class="panel-row" style="grid-template-columns:1fr;">
               <section class="panel">
@@ -1370,7 +1409,7 @@
       </div>
     </main>
 
-    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build finance-v2</footer>
+    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build finance-v3</footer>
   </div>
 
 </div>
@@ -3504,8 +3543,19 @@ window.addEventListener("unhandledrejection", function(e){
       return;
     }
     var latest = financeRows[financeRows.length-1];
+    for(var bi = financeRows.length - 1; bi >= 0; bi--){
+      var cand = financeRows[bi];
+      if((Array.isArray(cand.bank_accounts) && cand.bank_accounts.length) || (cand.cash !== null && cand.cash !== undefined)){ latest = cand; break; }
+    }
     var accounts = (latest && latest.bank_accounts) || [];
     if(!Array.isArray(accounts)) accounts = [];
+    if(!accounts.length && (latest.cash === null || latest.cash === undefined)){
+      sub.textContent = "No bank balances on file yet — they come from the weekly balance sheet.";
+      var emptyR = document.createElement("tr");
+      emptyR.innerHTML = '<td colspan="3" class="empty-cell">No bank balances yet.</td>';
+      tbody.appendChild(emptyR);
+      return;
+    }
     sub.textContent = "As of " + fmtDateFull(latest.date);
 
     if(!accounts.length){
@@ -3702,7 +3752,7 @@ window.addEventListener("unhandledrejection", function(e){
   }
 
   // ---- Finance overview reads the Payroll tab once it has enough weeks ----
-  var FIN_PAYROLL_MIN_WEEKS = 4;
+  var FIN_PAYROLL_MIN_WEEKS = 1;
   var finSourceInfo = { payrollWeeks: 0, used: false, dates: [], error: null };
   function isoAddDays(iso, n){
     var d = new Date(String(iso).slice(0,10) + "T00:00:00Z");
@@ -3857,11 +3907,11 @@ window.addEventListener("unhandledrejection", function(e){
     var i = finSourceInfo;
     if(i.used){
       el.textContent = "Sales, cost of sales, margin and headcount come from the Payroll tab for the " + i.dates.length + " week(s) with payroll data (" +
-        fmtDate(i.dates[0]) + " – " + fmtDate(i.dates[i.dates.length-1]) + "); earlier weeks use the QuickBooks snapshot. Cash, AR and AP always come from the weekly balance sheet. " +
-        "A payroll week uploaded before worker counts were recorded keeps its snapshot headcount.";
+        fmtDate(i.dates[0]) + " – " + fmtDate(i.dates[i.dates.length-1]) + "). Cash, AR and AP appear only for weeks that have a balance-sheet snapshot. " +
+        "A payroll week uploaded before worker counts were recorded shows its snapshot headcount, if there is one.";
     }else{
-      el.textContent = "Showing the QuickBooks snapshots. This tab switches to Payroll tab numbers (sales, cost, margin, headcount) once the Payroll tab has " +
-        FIN_PAYROLL_MIN_WEEKS + " weeks of data; it has " + i.payrollWeeks + " now." + (i.error ? " (Couldn't read payroll data: " + i.error + ")" : "");
+      el.textContent = "No payroll weeks found yet, so this tab has nothing to show. Upload a week under Weekly update and it will appear here." +
+        (i.error ? " (Couldn't read payroll data: " + i.error + ")" : "");
     }
   }
 
@@ -5637,6 +5687,149 @@ window.addEventListener("unhandledrejection", function(e){
     }
   }
 
+  // ---- Balance Sheet (QuickBooks .xlsx) -> snapshots row: bank accounts, cash, AR, AP ----
+  var bsParsed = null;
+  var BS_MONTHS = { jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12 };
+  function bsNum(v){
+    if(typeof v === "number") return isFinite(v) ? v : null;
+    if(typeof v !== "string") return null;
+    var t = v.trim();
+    if(!t || !/^[\s$()\-+0-9.,]+$/.test(t) || !/[0-9]/.test(t)) return null;
+    var neg = /^\(.*\)$/.test(t) || /^-/.test(t);
+    var n = parseFloat(t.replace(/[^0-9.]/g, ""));
+    if(!isFinite(n)) return null;
+    return neg ? -n : n;
+  }
+  function bsIso(y, m, d){ return y + "-" + ("0"+m).slice(-2) + "-" + ("0"+d).slice(-2); }
+  function bsFindDate(rows){
+    for(var i=0; i<Math.min(rows.length, 15); i++){
+      var row = rows[i] || [];
+      for(var j=0; j<row.length; j++){
+        var v = row[j];
+        if(v instanceof Date && !isNaN(v)) return bsIso(v.getFullYear(), v.getMonth()+1, v.getDate());
+        if(typeof v !== "string") continue;
+        var m = v.match(/([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})/);
+        if(m && BS_MONTHS[m[1].slice(0,3).toLowerCase()]) return bsIso(+m[3], BS_MONTHS[m[1].slice(0,3).toLowerCase()], +m[2]);
+        m = v.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if(m) return bsIso(+m[3], +m[1], +m[2]);
+      }
+    }
+    return null;
+  }
+  function parseBalanceSheetRows(rows){
+    var lines = [];
+    rows.forEach(function(row, idx){
+      if(!row) return;
+      var label = null, li = -1, i;
+      for(i=0; i<row.length; i++){
+        if(typeof row[i] === "string" && row[i].trim()){ label = row[i].trim(); li = i; break; }
+      }
+      if(label === null) return;
+      var val = null;
+      for(i=row.length-1; i>li; i--){
+        var n = bsNum(row[i]);
+        if(n !== null){ val = n; break; }
+      }
+      lines.push({ idx: idx, label: label, value: val });
+    });
+    function find(fn){ for(var i=0;i<lines.length;i++){ if(fn(lines[i])) return i; } return -1; }
+    var start = find(function(l){ return /^bank accounts$/i.test(l.label); });
+    var end = find(function(l){ return /^total for bank accounts$/i.test(l.label); });
+    if(start === -1 || end === -1 || end < start){
+      throw new Error("Couldn't find the \"Bank Accounts\" / \"Total for Bank Accounts\" lines. Is this the QuickBooks Balance Sheet export?");
+    }
+    var accounts = [];
+    for(var k=start+1; k<end; k++){
+      var l = lines[k];
+      if(l.value === null || /^total\b/i.test(l.label)) continue;
+      var m = l.label.match(/^(\S+)\s+(.*)$/);
+      var code = "", name = l.label;
+      if(m && /\d/.test(m[1])){ code = m[1]; name = m[2]; }
+      accounts.push({ code: code, name: name, balance: Math.round(l.value*100)/100 });
+    }
+    var sum = Math.round(accounts.reduce(function(a, x){ return a + x.balance; }, 0) * 100) / 100;
+    var cash = lines[end].value;
+    var warnings = [];
+    if(cash === null){ cash = sum; warnings.push("No total shown for Bank Accounts, so cash is the sum of the accounts."); }
+    else if(Math.abs(cash - sum) > 0.05){ warnings.push("Bank account lines add up to " + fmtUSD(sum) + " but the Bank Accounts total is " + fmtUSD(cash) + ". Check that nothing is missing from the preview."); }
+    function pick(codeRe, nameRe){
+      var i = find(function(l){ return l.value !== null && !/^total\b/i.test(l.label) && codeRe.test(l.label); });
+      if(i === -1) i = find(function(l){ return l.value !== null && !/^total\b/i.test(l.label) && nameRe.test(l.label); });
+      return i === -1 ? null : Math.round(lines[i].value*100)/100;
+    }
+    var ar = pick(/^11000\b.*accounts receivable/i, /^accounts receivable/i);
+    var ap = pick(/^20000\b.*accounts payable/i, /^accounts payable/i);
+    if(ar === null) warnings.push("Couldn't find Accounts Receivable (11000) \u2014 AR will be left as it is.");
+    if(ap === null) warnings.push("Couldn't find Accounts Payable (20000) \u2014 AP will be left as it is.");
+    return { date: bsFindDate(rows), cash: Math.round(cash*100)/100, ar: ar, ap: ap, accounts: accounts, warnings: warnings };
+  }
+  async function bsRead(){
+    var errEl = document.getElementById("bs-err"), warnEl = document.getElementById("bs-warn");
+    errEl.style.display = "none"; warnEl.style.display = "none"; warnEl.innerHTML = "";
+    document.getElementById("bs-preview").hidden = true;
+    document.getElementById("bs-status").textContent = "";
+    bsParsed = null;
+    try{
+      var f = document.getElementById("bs-file").files[0];
+      if(!f) throw new Error("Choose the Balance Sheet file first.");
+      var buf = await f.arrayBuffer();
+      var wb = XLSX.read(buf, { type: "array", cellDates: true });
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
+      var res = parseBalanceSheetRows(rows);
+      var dateEl = document.getElementById("bs-date");
+      if(res.date) dateEl.value = res.date;
+      if(!dateEl.value) throw new Error("Couldn't find the as-of date in the file \u2014 pick it in the \"As of\" box and click Read again.");
+      bsParsed = res;
+      var kp = document.getElementById("bs-kpis");
+      kp.innerHTML = "";
+      kp.appendChild(kpiTile("Total cash", fmtUSD(res.cash), null));
+      kp.appendChild(kpiTile("Accounts receivable", res.ar === null ? "\u2014" : fmtUSD(res.ar), null));
+      kp.appendChild(kpiTile("Accounts payable", res.ap === null ? "\u2014" : fmtUSD(res.ap), null));
+      var tb = document.querySelector("#bs-table tbody");
+      tb.innerHTML = "";
+      res.accounts.forEach(function(a){
+        var tr = document.createElement("tr");
+        tr.innerHTML = '<td>'+escHtml(a.name)+'</td><td>'+escHtml(a.code || "\u2014")+'</td><td class="num-col num">'+fmtUSD(a.balance)+'</td>';
+        tb.appendChild(tr);
+      });
+      var w = res.warnings.slice();
+      var dd = new Date(dateEl.value + "T00:00:00Z");
+      if(!isNaN(dd) && dd.getUTCDay() !== 6) w.push("The as-of date is not a Saturday. Weeks on this site end on Saturday, so this balance sheet won't line up with a payroll week.");
+      if(w.length){ warnEl.innerHTML = w.map(function(t){ return "<div>\u26A0 " + escHtml(t) + "</div>"; }).join(""); warnEl.style.display = "block"; }
+      document.getElementById("bs-preview").hidden = false;
+    }catch(err){
+      errEl.textContent = (err && err.message) || "Couldn't read that file.";
+      errEl.style.display = "block";
+    }
+  }
+  async function bsSave(){
+    var statusEl = document.getElementById("bs-status"), btn = document.getElementById("bs-save-btn");
+    if(!bsParsed) return;
+    var date = document.getElementById("bs-date").value;
+    if(!date){ statusEl.textContent = "Pick the as-of date first."; statusEl.style.color = "var(--critical)"; return; }
+    btn.disabled = true; btn.textContent = "Saving\u2026"; statusEl.textContent = ""; statusEl.style.color = "var(--text-secondary)";
+    try{
+      var row = { cash: bsParsed.cash, bank_accounts: bsParsed.accounts };
+      if(bsParsed.ar !== null) row.ar = bsParsed.ar;
+      if(bsParsed.ap !== null) row.ap = bsParsed.ap;
+      var ex = await sb.from("snapshots").select("date").eq("date", date).maybeSingle();
+      if(ex.error) throw ex.error;
+      var w = ex.data
+        ? await sb.from("snapshots").update(row).eq("date", date)
+        : await sb.from("snapshots").insert(Object.assign({ date: date }, row));
+      if(w.error) throw w.error;
+      statusEl.textContent = "Saved balances for " + fmtDateFull(date) + ".";
+      statusEl.style.color = "var(--good)";
+      try{ var rows = await fetchFinRows(); notifyFin(rows); renderHomeBankBalances(); }catch(e){ console.error(e); }
+    }catch(err){
+      statusEl.textContent = "Couldn't save: " + ((err && err.message) || "unknown error");
+      statusEl.style.color = "var(--critical)";
+    }finally{
+      btn.disabled = false; btn.textContent = "Save balance sheet";
+    }
+  }
+
   function initUploadSection(){
     if(!isAdmin()) return;
     loadUplRefData().catch(function(){});
@@ -5653,6 +5846,8 @@ window.addEventListener("unhandledrejection", function(e){
     }
     document.getElementById("upl-parse-btn").addEventListener("click", uplComputePreview);
     document.getElementById("upl-submit-btn").addEventListener("click", uplSubmit);
+    document.getElementById("bs-parse-btn").addEventListener("click", bsRead);
+    document.getElementById("bs-save-btn").addEventListener("click", bsSave);
   }
 
   // kick off: check for an existing session on load
