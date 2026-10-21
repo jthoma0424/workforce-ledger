@@ -1331,7 +1331,7 @@
               <div class="panel-head">
                 <div>
                   <div class="panel-title">Weekly update</div>
-                  <div class="panel-sub">Upload this week&rsquo;s payroll report, WC/state report, and (Tower only) invoices. Everything is computed here in your browser &mdash; nothing is written until you review the preview and click Submit.</div>
+                  <div class="panel-sub">Each week, work down this page: payroll &amp; commissions (this section), then invoices, placements &amp; workers comp, and the balance sheet. Everything is computed here in your browser &mdash; nothing is written until you review the preview and click the save button for that section.</div>
                 </div>
               </div>
 
@@ -1352,7 +1352,7 @@
                   <input type="file" id="upl-wc-file" accept=".xlsx,.xls">
                 </div>
                 <div class="crud-field">
-                  <label for="upl-tower-files">Tower 4ward invoices (PDF, up to 3 &mdash; optional)</label>
+                  <label for="upl-tower-files">Invoice PDFs: Tower (3), Timber Creek, Magic Coil, Midland &mdash; choose all six (optional)</label>
                   <input type="file" id="upl-tower-files" accept=".pdf" multiple>
                 </div>
               </div>
@@ -1363,45 +1363,6 @@
 
               <div class="login-msg err" id="upl-err" style="display:none; margin-top:12px;"></div>
               <div id="upl-warnings" style="display:none; margin-top:12px;"></div>
-            </section>
-          </div>
-
-          <div class="panel-row" style="grid-template-columns:1fr;">
-            <section class="panel" id="bs-panel">
-              <div class="panel-head">
-                <div>
-                  <div class="panel-title">Balance sheet (bank balances, cash, AR, AP)</div>
-                  <div class="panel-sub">Upload the QuickBooks Balance Sheet export (.xlsx). This feeds the bank balances on the Home screen and the Cash / AR / AP tiles on Finance overview. It is separate from the payroll upload above &mdash; nothing is saved until you review it and click Save.</div>
-                </div>
-              </div>
-              <div class="upl-row">
-                <div class="crud-field">
-                  <label for="bs-file">Balance Sheet (.xlsx)</label>
-                  <input type="file" id="bs-file" accept=".xlsx,.xls,.csv">
-                </div>
-                <div class="crud-field">
-                  <label for="bs-date">As of (Saturday accrual date)</label>
-                  <input type="date" id="bs-date">
-                </div>
-              </div>
-              <div class="row-actions" style="margin-top:10px;">
-                <button type="button" class="btn-primary" id="bs-parse-btn">Read balance sheet</button>
-              </div>
-              <div class="login-msg err" id="bs-err" style="display:none; margin-top:12px;"></div>
-              <div id="bs-warn" style="display:none; margin-top:12px; color:var(--text-secondary); font-size:13px;"></div>
-              <div id="bs-preview" hidden style="margin-top:14px;">
-                <div class="kpi-grid" id="bs-kpis"></div>
-                <div class="table-scroll" style="margin-top:12px;">
-                  <table class="data-table" id="bs-table">
-                    <thead><tr><th>Bank account</th><th>Code</th><th class="num-col">Balance</th></tr></thead>
-                    <tbody></tbody>
-                  </table>
-                </div>
-                <div class="row-actions" style="margin-top:12px;">
-                  <button type="button" class="btn-primary" id="bs-save-btn">Save balance sheet</button>
-                  <span id="bs-status" style="margin-left:10px; color:var(--text-secondary); font-size:13px;"></span>
-                </div>
-              </div>
             </section>
           </div>
 
@@ -1448,10 +1409,161 @@
               </section>
             </div>
 
+            <div class="panel-row" style="grid-template-columns:1fr;">
+              <section class="panel" id="upl-qb-panel">
+                <div class="panel-head">
+                  <div>
+                    <div class="panel-title">QuickBooks invoices &mdash; Owed to S4L</div>
+                    <div class="panel-sub" id="upl-qb-sub">One invoice per location billed through CACH Labor, for the Owed to S4L amount (wages + taxes + workers comp &times; 1.10 + FSG gross profit &minus; FSG commission). It needs that location&rsquo;s invoice PDF (for Sales), so locations without one show as waiting.</div>
+                  </div>
+                </div>
+                <div class="table-scroll">
+                  <table class="data-table" id="upl-qb-table">
+                    <thead><tr>
+                      <th>Location</th><th>PDF invoice #</th><th class="num-col">Invoice amount (sales)</th><th class="num-col">Owed to S4L</th><th>QuickBooks invoice #</th>
+                    </tr></thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+                <div class="row-actions" style="margin-top:12px;">
+                  <button type="button" class="btn-primary" id="upl-qb-csv-btn">Download QuickBooks invoice file (.csv)</button>
+                  <span id="upl-qb-status" style="margin-left:10px; color:var(--text-secondary); font-size:13px;"></span>
+                </div>
+              </section>
+            </div>
+
             <div class="row-actions" style="margin:4px 0 20px;">
               <button type="button" class="btn-primary" id="upl-submit-btn">Submit to database</button>
               <span id="upl-submit-status" style="margin-left:10px; color:var(--text-secondary); font-size:13px;"></span>
             </div>
+          </div>
+
+          <div class="panel-row" style="grid-template-columns:1fr;">
+            <section class="panel" id="inv-panel">
+              <div class="panel-head">
+                <div>
+                  <div class="panel-title">Invoices</div>
+                  <div class="panel-sub">Upload the QuickBooks <em>Invoice List by Date</em> export (.xlsx). New invoices are added to the Invoices tab; ones already there (same invoice number and customer) are skipped, so it is safe to upload the same list twice. Customers are matched by name &mdash; any that don&rsquo;t match you can pick yourself.</div>
+                </div>
+              </div>
+              <div class="upl-row">
+                <div class="crud-field">
+                  <label for="inv-file">Invoice List by Date (.xlsx)</label>
+                  <input type="file" id="inv-file" accept=".xlsx,.xls,.csv">
+                </div>
+                <div class="crud-field">
+                  <label for="inv-from">Only invoices dated on or after (optional)</label>
+                  <input type="date" id="inv-from">
+                </div>
+              </div>
+              <div class="row-actions" style="margin-top:10px;">
+                <button type="button" class="btn-primary" id="inv-parse-btn">Read invoices</button>
+              </div>
+              <div class="login-msg err" id="inv-err" style="display:none; margin-top:12px;"></div>
+              <div id="inv-warn" style="display:none; margin-top:12px; color:var(--text-secondary); font-size:13px;"></div>
+              <div id="inv-preview" hidden style="margin-top:14px;">
+                <div class="kpi-grid" id="inv-kpis"></div>
+                <div id="inv-unmatched" hidden style="margin-bottom:14px;">
+                  <div class="panel-title" style="margin-bottom:4px;">Customers to match</div>
+                  <div class="panel-sub" style="margin-bottom:8px;">These QuickBooks customers didn&rsquo;t match exactly one customer on the site. Pick the right one, or leave as &ldquo;skip&rdquo; and those invoices won&rsquo;t be added.</div>
+                  <div class="table-scroll">
+                    <table class="data-table" id="inv-unmatched-table">
+                      <thead><tr><th>QuickBooks customer</th><th class="num-col">Invoices</th><th class="num-col">Amount</th><th>Site customer</th></tr></thead>
+                      <tbody></tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="table-scroll">
+                  <table class="data-table" id="inv-table">
+                    <thead><tr><th>Invoice #</th><th>Customer</th><th>Date</th><th>Issued as</th><th class="num-col">Amount</th></tr></thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+                <div class="panel-sub" id="inv-more" style="margin-top:6px;"></div>
+                <div class="row-actions" style="margin-top:12px;">
+                  <button type="button" class="btn-primary" id="inv-save-btn">Add invoices</button>
+                  <span id="inv-status" style="margin-left:10px; color:var(--text-secondary); font-size:13px;"></span>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div class="panel-row" style="grid-template-columns:1fr;">
+            <section class="panel" id="plc-up-panel">
+              <div class="panel-head">
+                <div>
+                  <div class="panel-title">Placements &amp; workers comp</div>
+                  <div class="panel-sub">Builds this week&rsquo;s list of active employees (with state and WC class code) from the per-employee WC/state report and updates the Placements tab. By default it uses the WC/state file chosen under Payroll above; choose a different one here only if you need to. The week-ending date above is stamped as &ldquo;last confirmed active&rdquo;.</div>
+                </div>
+              </div>
+              <div class="upl-row">
+                <div class="crud-field">
+                  <label for="plc-up-file">Per-employee WC/state report (.xlsx) &mdash; optional here</label>
+                  <input type="file" id="plc-up-file" accept=".xlsx,.xls">
+                </div>
+                <div class="crud-field" style="justify-content:flex-end;">
+                  <label style="display:flex;gap:8px;align-items:center;font-size:13px;"><input type="checkbox" id="plc-up-end" checked> Mark workers not on this sheet as Ended</label>
+                </div>
+              </div>
+              <div class="row-actions" style="margin-top:10px;">
+                <button type="button" class="btn-primary" id="plc-up-parse-btn">Build placement sheet</button>
+              </div>
+              <div class="login-msg err" id="plc-up-err" style="display:none; margin-top:12px;"></div>
+              <div id="plc-up-warn" style="display:none; margin-top:12px; color:var(--text-secondary); font-size:13px;"></div>
+              <div id="plc-up-preview" hidden style="margin-top:14px;">
+                <div class="kpi-grid" id="plc-up-kpis"></div>
+                <div id="plc-up-ending" hidden style="margin-bottom:14px; color:var(--text-secondary); font-size:13px;"></div>
+                <div class="table-scroll" style="max-height:520px; overflow-y:auto;">
+                  <table class="data-table" id="plc-up-table">
+                    <thead><tr><th>Worker</th><th>Customer</th><th>State</th><th>WC class</th><th class="num-col">Gross pay</th><th>On site</th></tr></thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+                <div class="row-actions" style="margin-top:12px;">
+                  <button type="button" class="btn-primary" id="plc-up-save-btn">Update placements</button>
+                  <span id="plc-up-status" style="margin-left:10px; color:var(--text-secondary); font-size:13px;"></span>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div class="panel-row" style="grid-template-columns:1fr;">
+            <section class="panel" id="bs-panel">
+              <div class="panel-head">
+                <div>
+                  <div class="panel-title">Balance sheet (bank balances, cash, AR, AP)</div>
+                  <div class="panel-sub">Upload the QuickBooks Balance Sheet export (.xlsx). This feeds the bank balances on the Home screen and the Cash / AR / AP tiles on Finance overview. It is separate from the payroll upload above &mdash; nothing is saved until you review it and click Save.</div>
+                </div>
+              </div>
+              <div class="upl-row">
+                <div class="crud-field">
+                  <label for="bs-file">Balance Sheet (.xlsx)</label>
+                  <input type="file" id="bs-file" accept=".xlsx,.xls,.csv">
+                </div>
+                <div class="crud-field">
+                  <label for="bs-date">As of (Saturday accrual date)</label>
+                  <input type="date" id="bs-date">
+                </div>
+              </div>
+              <div class="row-actions" style="margin-top:10px;">
+                <button type="button" class="btn-primary" id="bs-parse-btn">Read balance sheet</button>
+              </div>
+              <div class="login-msg err" id="bs-err" style="display:none; margin-top:12px;"></div>
+              <div id="bs-warn" style="display:none; margin-top:12px; color:var(--text-secondary); font-size:13px;"></div>
+              <div id="bs-preview" hidden style="margin-top:14px;">
+                <div class="kpi-grid" id="bs-kpis"></div>
+                <div class="table-scroll" style="margin-top:12px;">
+                  <table class="data-table" id="bs-table">
+                    <thead><tr><th>Bank account</th><th>Code</th><th class="num-col">Balance</th></tr></thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+                <div class="row-actions" style="margin-top:12px;">
+                  <button type="button" class="btn-primary" id="bs-save-btn">Save balance sheet</button>
+                  <span id="bs-status" style="margin-left:10px; color:var(--text-secondary); font-size:13px;"></span>
+                </div>
+              </div>
+            </section>
           </div>
         </div>
 
@@ -1497,7 +1609,7 @@
       </div>
     </main>
 
-    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build companies-v1</footer>
+    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build weekly-v2</footer>
   </div>
 
 </div>
@@ -5368,6 +5480,7 @@ window.addEventListener("unhandledrejection", function(e){
   var uplInited = false;
   var uplPayrollRows = [];
   var uplFsgRows = [];
+  var uplPdfInfo = {};   // staffing_location -> parsed invoice PDF (for the QuickBooks invoice list)
 
   async function loadUplRefData(force){
     if(uplRef && !force) return uplRef;
@@ -5497,7 +5610,8 @@ window.addEventListener("unhandledrejection", function(e){
         wcCode: String(wcCodeRaw === null ? "" : wcCodeRaw).trim(),
         grossPay: earning,
         overtimePay: Number(overtimePay) || 0,
-        overtimeExcess: overtimeExcess
+        overtimeExcess: overtimeExcess,
+        hireDate: newLayout ? row[6] : null
       });
     }
     var bestDate = null, bestCount = -1;
@@ -5505,7 +5619,7 @@ window.addEventListener("unhandledrejection", function(e){
     return { rows: out, payDateGuess: bestDate };
   }
 
-  // ---- Tower "4ward" invoice PDF parsing ----
+  // ---- Invoice PDF parsing: Tower (4ward) plus the three Frontier / CACH Labor invoices ----
   async function parseTowerInvoicePdf(file){
     if(!window.pdfjsLib){
       window.pdfjsLib = window["pdfjs-dist/build/pdf"] || window.pdfjsLib;
@@ -5519,16 +5633,39 @@ window.addEventListener("unhandledrejection", function(e){
       var content = await page.getTextContent();
       text += content.items.map(function(it){ return it.str; }).join(" ") + "\n";
     }
-    var amtMatch = text.match(/INVOICE AMOUNT\s*\$?\s*([\d,]+\.\d{2})/i);
+    return parseInvoiceText(text, file.name);
+  }
+  function parseInvoiceText(text, fileName){
+    var amtRe = /INVOICE AMOUNT\s*\$?\s*([\d,]+\.\d{2})/gi, amtMatch = null, m;
+    while((m = amtRe.exec(text)) !== null) amtMatch = m;   // the last one is the grand total
     var periodMatch = text.match(/Payroll Period\s*(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})/i);
-    var billToMatch = text.match(/Tower Extrusions\s*-\s*([A-Za-z]+)/i);
-    if(!amtMatch) throw new Error(file.name + ": couldn't find an INVOICE AMOUNT line in this PDF.");
-    if(!billToMatch) throw new Error(file.name + ": couldn't tell which Tower location this invoice is for (expected \"Tower Extrusions - <Location>\").");
-    var loc = "Tower " + billToMatch[1].charAt(0).toUpperCase() + billToMatch[1].slice(1).toLowerCase();
+    var numMatch = text.match(/Invoice Number\s+([A-Za-z0-9\-]+)/i);
+    var tower = text.match(/Tower Extrusions\s*-\s*([A-Za-z]+)/i);
+    var loc = null;
+    if(tower) loc = "Tower " + tower[1].charAt(0).toUpperCase() + tower[1].slice(1).toLowerCase();
+    else {
+      var hay = text + " " + (fileName || "");
+      if(/midland truss/i.test(hay)) loc = "Midland Truss";
+      else if(/magic coil/i.test(hay)) loc = "Magic Coil Products LLC";
+      else if(/timber creek/i.test(hay)) loc = "Timber Creek Housing";
+    }
+    if(!amtMatch) throw new Error(fileName + ": couldn't find an INVOICE AMOUNT line in this PDF.");
+    var invoiceAmount = Number(amtMatch[1].replace(/,/g, ""));
+    // Frontier (CACH Labor) invoices: Sales is the total BEFORE boot/tool or loan deductions, i.e. the last
+    // figure on the wage-type "Totals" line. The "INVOICE AMOUNT" at the bottom is after deductions.
+    var salesAmount = invoiceAmount;
+    if(/Frontier Solutions Group/i.test(text)){
+      var totRe = /Totals\s+\$?\s*([\d,]+\.\d{2})\s+\$?\s*([\d,]+\.\d{2})\s+\$?\s*([\d,]+\.\d{2})/g, tm, cand = null;
+      while((tm = totRe.exec(text)) !== null) cand = Number(tm[3].replace(/,/g, ""));
+      if(cand !== null && cand >= invoiceAmount - 0.005 && cand - invoiceAmount <= 2000) salesAmount = cand;
+    }
+    if(!loc) throw new Error(fileName + ": couldn't tell which location this invoice is for (expected Tower, Midland Truss, Magic Coil or Timber Creek).");
     return {
-      fileName: file.name,
+      fileName: fileName,
       staffingLocation: loc,
-      invoiceAmount: Number(amtMatch[1].replace(/,/g, "")),
+      invoiceAmount: invoiceAmount,
+      salesAmount: salesAmount,
+      invoiceNumber: numMatch ? numMatch[1] : null,
       periodStart: periodMatch ? periodMatch[1] : null,
       periodEnd: periodMatch ? periodMatch[2] : null
     };
@@ -5647,7 +5784,8 @@ window.addEventListener("unhandledrejection", function(e){
         uplAddWarning(warnings, "WC report: no rate on file for class code \"" + code + "\" (" + unmatchedRateCodes[code] + " employee row(s)) — those employees' workers comp not included. Add this code under WC rate card first.");
       });
 
-      // 3) Tower invoices -> sales for Tower Hensley/Martinez/Olney
+      // 3) invoice PDFs -> sales for the six FSG-billed locations
+      uplPdfInfo = {};
       for(var t=0; t<towerFiles.length; t++){
         try{
           var inv = await parseTowerInvoicePdf(towerFiles[t]);
@@ -5663,9 +5801,16 @@ window.addEventListener("unhandledrejection", function(e){
               wages: 0, payroll_taxes: 0, workers_comp: 0, sales: null
             };
           }
-          byKey[key2].sales = inv.invoiceAmount;
-          if(inv.periodStart && inv.periodEnd){
-            uplAddWarning(warnings, inv.fileName + ": invoice payroll period is " + inv.periodStart + " – " + inv.periodEnd + " — double check that lines up with the week ending you set (" + checkDate + ").");
+          if(uplPdfInfo[loc2.staffing_location]) uplAddWarning(warnings, "Two PDFs were chosen for " + loc2.staffing_location + " (" + uplPdfInfo[loc2.staffing_location].fileName + " and " + inv.fileName + ") — using " + inv.fileName + ".");
+          uplPdfInfo[loc2.staffing_location] = inv;
+          byKey[key2].sales = inv.salesAmount;
+          if(Math.abs(inv.salesAmount - inv.invoiceAmount) > 0.005) uplAddWarning(warnings, loc2.staffing_location + ": Sales uses the invoice total before deductions (" + fmtUSD(inv.salesAmount) + "; the PDF's final amount after deductions is " + fmtUSD(inv.invoiceAmount) + ").");
+          if(inv.periodEnd){
+            var pe = inv.periodEnd.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+            var peIso = pe ? pe[3] + "-" + pe[1] + "-" + pe[2] : null;
+            if(peIso && peIso !== isoAddDays(checkDate, -6)){
+              uplAddWarning(warnings, inv.fileName + ": invoice payroll period is " + inv.periodStart + " – " + inv.periodEnd + ", which doesn't line up with the week ending you set (" + checkDate + ", i.e. period ending " + isoAddDays(checkDate, -6) + ").");
+            }
           }
         }catch(pdfErr){
           uplAddWarning(warnings, "Couldn't parse " + towerFiles[t].name + ": " + pdfErr.message);
@@ -5726,12 +5871,101 @@ window.addEventListener("unhandledrejection", function(e){
       uplPayrollRows = payrollRows;
       uplFsgRows = fsgRows;
       uplRenderPreview(warnings);
+      uplRenderQb(checkDate);
     }catch(err){
       errBox.textContent = (err && err.message) ? err.message : "Couldn't parse those files.";
       errBox.style.display = "block";
     }finally{
       parseBtn.disabled = false; parseBtn.textContent = "Parse & preview";
     }
+  }
+
+  // ---- QuickBooks invoice list: Owed to S4L per FSG-billed location ----
+  var QB_SEED_NUMBERS = { "Midland Truss": "10MLT", "Magic Coil Products LLC": "26MC", "Timber Creek Housing": "47T",
+                          "Tower Hensley": "FSGHensley79", "Tower Martinez": "FSGMartinez79", "Tower Olney": "FSGOlney79" };
+  function qbLoadNumbers(){
+    try{ var v = JSON.parse(localStorage.getItem("wl_qb_last_numbers") || "null"); if(v && typeof v === "object") return v; }catch(e){}
+    return {};
+  }
+  function qbSaveNumbers(map){ try{ localStorage.setItem("wl_qb_last_numbers", JSON.stringify(map)); }catch(e){} }
+  function qbNextNumber(prev){
+    if(!prev) return "";
+    return String(prev).replace(/\d+/, function(d){ return String(parseInt(d, 10) + 1).padStart(d.length, "0"); });
+  }
+  function qbUsDate(iso){ var m = String(iso).match(/(\d{4})-(\d{2})-(\d{2})/); return m ? m[2] + "/" + m[3] + "/" + m[1] : ""; }
+  function qbCsvCell(v){ v = (v === null || v === undefined) ? "" : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+  function qbPeriod(checkDate, info){
+    var end = isoAddDays(checkDate, -6), start = isoAddDays(checkDate, -12);
+    if(info && info.periodEnd){
+      var e = info.periodEnd.match(/(\d{2})\/(\d{2})\/(\d{4})/), st = info.periodStart && info.periodStart.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+      if(e) end = e[3] + "-" + e[1] + "-" + e[2];
+      if(st) start = st[3] + "-" + st[1] + "-" + st[2];
+    }
+    return { start: start, end: end };
+  }
+  var uplQbRows = [];
+  function uplRenderQb(checkDate){
+    var last = qbLoadNumbers();
+    var tbody = document.querySelector("#upl-qb-table tbody");
+    tbody.innerHTML = "";
+    uplQbRows = [];
+    var total = 0, waiting = [];
+    FSG_DIRECT_BILLED.forEach(function(loc){
+      var fsg = uplFsgRows.filter(function(r){ return r.staffing_location === loc; })[0];
+      var info = uplPdfInfo[loc];
+      var owed = (fsg && fsg.owed_to_s4l !== null && fsg.owed_to_s4l !== undefined) ? fsg.owed_to_s4l : null;
+      var seed = last[loc] || QB_SEED_NUMBERS[loc] || "";
+      var suggested = qbNextNumber(seed);
+      var tr = document.createElement("tr");
+      if(owed === null){
+        waiting.push(loc);
+        tr.innerHTML = '<td class="strong">' + escHtml(loc) + '</td><td>' + escHtml(info && info.invoiceNumber || "—") + '</td><td class="num-col num">' +
+          (info ? fmtUSD(info.invoiceAmount) : "—") + '</td><td class="num-col num" style="color:var(--text-secondary);">' +
+          (info ? "needs payroll data" : "waiting for PDF") + '</td><td></td>';
+      } else {
+        total += owed;
+        tr.innerHTML = '<td class="strong">' + escHtml(loc) + '</td><td>' + escHtml(info && info.invoiceNumber || "—") + '</td><td class="num-col num">' +
+          fmtUSD(fsg.sales) + '</td><td class="num-col num strong">' + fmtUSD(owed) + '</td>' +
+          '<td><input type="text" class="upl-qb-no" data-loc="' + escHtml(loc) + '" value="' + escHtml(suggested) + '" style="width:150px;"></td>';
+        uplQbRows.push({ loc: loc, owed: owed, sales: fsg.sales, info: info, state: fsg.state });
+      }
+      tbody.appendChild(tr);
+    });
+    var tf = document.createElement("tr");
+    tf.innerHTML = '<td class="strong">Total</td><td></td><td></td><td class="num-col num strong">' + fmtUSD(round2(total)) + '</td><td></td>';
+    tbody.appendChild(tf);
+    document.getElementById("upl-qb-csv-btn").disabled = !uplQbRows.length;
+    document.getElementById("upl-qb-status").textContent = waiting.length ? "Waiting on: " + waiting.join(", ") + "." : "All six are ready. Check the invoice numbers (suggested from the last ones used).";
+    document.getElementById("upl-qb-status").style.color = "var(--text-secondary)";
+  }
+  async function uplQbDownload(){
+    var statusEl = document.getElementById("upl-qb-status");
+    var checkDate = document.getElementById("upl-week-input").value;
+    var nums = {}, bad = [];
+    Array.prototype.forEach.call(document.querySelectorAll(".upl-qb-no"), function(i){
+      var v = i.value.trim(); nums[i.getAttribute("data-loc")] = v; if(!v) bad.push(i.getAttribute("data-loc"));
+    });
+    if(bad.length){ statusEl.textContent = "Enter an invoice number for: " + bad.join(", ") + "."; statusEl.style.color = "var(--critical)"; return; }
+    var ref = await loadUplRefData();
+    var head = ["*InvoiceNo","*Customer","*InvoiceDate","*DueDate","Terms","Location","Memo","Item(Product/Service)","ItemDescription","ItemQuantity","ItemRate","*ItemAmount","Taxable","TaxRate","Service Date","Class"];
+    var lines = [head.join(",")];
+    uplQbRows.forEach(function(r){
+      var per = qbPeriod(checkDate, r.info);
+      var locRow = (ref.locations || []).filter(function(l){ return l.staffing_location === r.loc; })[0] || {};
+      var klass = locRow.office_code ? ((locRow.state || r.state || "") + ":" + locRow.office_code) : "";
+      var amt = r.owed.toFixed(2);
+      lines.push([nums[r.loc], "Frontier Solutions Group", qbUsDate(per.end), qbUsDate(isoAddDays(per.end, 10)), "Net 10", "Solutions 4 Labor LLC", "",
+        "Staffing Services", r.loc + " - payroll period " + qbUsDate(per.start) + " - " + qbUsDate(per.end), 1, amt, amt, "", "", qbUsDate(per.end), klass].map(qbCsvCell).join(","));
+    });
+    var blob = new Blob([lines.join("\r\n") + "\r\n"], { type: "text/csv" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "frontier-invoices-" + checkDate + ".csv";
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    var saved = qbLoadNumbers(); Object.keys(nums).forEach(function(k){ saved[k] = nums[k]; }); qbSaveNumbers(saved);
+    statusEl.textContent = "Downloaded " + uplQbRows.length + " invoice(s). Import it in QuickBooks under Import data → Invoices.";
+    statusEl.style.color = "var(--good)";
   }
 
   function uplRenderPreview(warnings){
@@ -5812,6 +6046,383 @@ window.addEventListener("unhandledrejection", function(e){
       statusEl.style.color = "var(--critical)";
     }finally{
       btn.disabled = false; btn.textContent = "Submit to database";
+    }
+  }
+
+  // ====================================================================
+  // Weekly invoices (QuickBooks Invoice List by Date) -> invoices table
+  // ====================================================================
+  var invParsed = null;
+  function xlDateIso(v){
+    if(v instanceof Date && !isNaN(v)){
+      var d = new Date(v.getTime() + 12*3600*1000);
+      return d.getFullYear() + "-" + ("0"+(d.getMonth()+1)).slice(-2) + "-" + ("0"+d.getDate()).slice(-2);
+    }
+    if(typeof v === "string"){
+      var m = v.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if(m) return m[3] + "-" + ("0"+m[1]).slice(-2) + "-" + ("0"+m[2]).slice(-2);
+      m = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if(m) return m[1] + "-" + m[2] + "-" + m[3];
+    }
+    return null;
+  }
+  function nameNorm(x){ return String(x || "").toLowerCase().replace(/[^a-z0-9]+/g, ""); }
+  async function fetchAllRows(table, cols, filterFn){
+    var all = [], from = 0, size = 1000;
+    while(true){
+      var q = sb.from(table).select(cols);
+      if(filterFn) q = filterFn(q);
+      var r = await q.range(from, from + size - 1);
+      if(r.error) throw r.error;
+      var d = r.data || [];
+      all = all.concat(d);
+      if(d.length < size) break;
+      from += size;
+    }
+    return all;
+  }
+  function parseInvoiceListRows(rows){
+    var hdr = -1, col = {};
+    var pats = {
+      date: /^(date|invoice date|transaction date|txn date)$/,
+      num: /^(num|no\.?|number|invoice #|invoice no\.?|invoice number|doc number|invoice num)$/,
+      cust: /^(customer|customer name|name|customer full name|full name)$/,
+      amt: /^(amount|total|invoice amount|total amount)$/,
+      due: /^due date$/,
+      issued: /^(issued as|billing entity|company|entity)$/,
+      type: /^(transaction type|type)$/
+    };
+    for(var i=0; i<Math.min(rows.length, 40) && hdr === -1; i++){
+      var row = rows[i] || [], c = {};
+      for(var j=0; j<row.length; j++){
+        if(typeof row[j] !== "string") continue;
+        var t = row[j].trim().toLowerCase();
+        Object.keys(pats).forEach(function(k){ if(c[k] === undefined && pats[k].test(t)) c[k] = j; });
+      }
+      if(c.date !== undefined && c.num !== undefined && c.cust !== undefined && c.amt !== undefined){ hdr = i; col = c; }
+    }
+    if(hdr === -1) throw new Error("Couldn't find the invoice columns. The file needs headers for Date, Num (invoice number), Customer and Amount.");
+    var out = [], skippedNoNum = 0;
+    for(var r=hdr+1; r<rows.length; r++){
+      var rw = rows[r];
+      if(!rw) continue;
+      var iso = xlDateIso(rw[col.date]);
+      var amount = bsNum(rw[col.amt]);
+      var cust = rw[col.cust] === null || rw[col.cust] === undefined ? "" : String(rw[col.cust]).trim();
+      if(!iso || amount === null || !cust) continue;         // totals / blank rows
+      if(col.type !== undefined && rw[col.type] && !/invoice/i.test(String(rw[col.type]))) continue;
+      var num = rw[col.num] === null || rw[col.num] === undefined ? "" : String(rw[col.num]).trim();
+      if(!num){ skippedNoNum++; continue; }
+      out.push({
+        date: iso, num: num, qbName: cust, amount: Math.round(amount*100)/100,
+        due: col.due !== undefined ? xlDateIso(rw[col.due]) : null,
+        issuedAs: col.issued !== undefined && rw[col.issued] ? String(rw[col.issued]).trim() : null
+      });
+    }
+    return { rows: out, skippedNoNum: skippedNoNum };
+  }
+  // Same matching idea as the original bulk import: exact name first, then a partial match (5+ letters); must be unique.
+  function matchInvoiceCustomer(qbName, customers){
+    var parts = String(qbName).split(":");
+    var child = nameNorm(parts.length > 1 && parts[1] ? parts[1] : qbName), full = nameNorm(qbName);
+    var best = 99, hits = [];
+    customers.forEach(function(c){
+      var cn = nameNorm(c.name), rank = null;
+      if(cn === child || cn === full) rank = 1;
+      else if(cn.length >= 5 && (cn.indexOf(child) !== -1 || child.indexOf(cn) !== -1)) rank = 2;
+      if(rank === null) return;
+      if(rank < best){ best = rank; hits = [c]; } else if(rank === best){ hits.push(c); }
+    });
+    return hits.length === 1 ? hits[0] : null;
+  }
+  async function invRead(){
+    var errEl = document.getElementById("inv-err"), warnEl = document.getElementById("inv-warn");
+    errEl.style.display = "none"; warnEl.style.display = "none"; warnEl.innerHTML = "";
+    document.getElementById("inv-preview").hidden = true;
+    document.getElementById("inv-status").textContent = "";
+    invParsed = null;
+    var btn = document.getElementById("inv-parse-btn");
+    btn.disabled = true; btn.textContent = "Reading…";
+    try{
+      var f = document.getElementById("inv-file").files[0];
+      if(!f) throw new Error("Choose the Invoice List file first.");
+      var wb = XLSX.read(await f.arrayBuffer(), { type: "array", cellDates: true });
+      var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: null });
+      var parsed = parseInvoiceListRows(rows);
+      var from = document.getElementById("inv-from").value;
+      var list = parsed.rows.filter(function(x){ return !from || x.date >= from; });
+      if(!list.length) throw new Error("No invoices found in that file" + (from ? " on or after " + fmtDateFull(from) : "") + ".");
+
+      var customers = (await fetchAllRows("customers", "id,name", function(q){ return q.eq("is_deleted", false); }));
+      var existing = await fetchAllRows("invoices", "invoice_number,customer_id");
+      var have = {};
+      existing.forEach(function(e){ have[String(e.invoice_number).trim().toLowerCase() + "|" + e.customer_id] = 1; });
+
+      var matchCache = {}, seen = {}, dupInFile = 0;
+      list.forEach(function(x){
+        if(!(x.qbName in matchCache)){ var m = matchInvoiceCustomer(x.qbName, customers); matchCache[x.qbName] = m ? m.id : null; }
+        x.customerId = matchCache[x.qbName];
+      });
+      // drop repeats inside the file (same QB customer + invoice number)
+      list = list.filter(function(x){ var k = x.qbName + "|" + x.num.toLowerCase(); if(seen[k]){ dupInFile++; return false; } seen[k] = 1; return true; });
+      invParsed = { list: list, customers: customers, have: have };
+      invRender();
+
+      var w = [];
+      if(parsed.skippedNoNum) w.push(parsed.skippedNoNum + " row(s) had no invoice number and were ignored.");
+      if(dupInFile) w.push(dupInFile + " repeated row(s) in the file were ignored.");
+      if(w.length){ warnEl.innerHTML = w.map(function(t){ return "<div>⚠ " + escHtml(t) + "</div>"; }).join(""); warnEl.style.display = "block"; }
+      document.getElementById("inv-preview").hidden = false;
+    }catch(err){
+      errEl.textContent = (err && err.message) || "Couldn't read that file.";
+      errEl.style.display = "block";
+    }finally{
+      btn.disabled = false; btn.textContent = "Read invoices";
+    }
+  }
+  function invCustomerFor(x){
+    if(x.customerId) return x.customerId;
+    var sel = document.querySelector('#inv-unmatched-table select[data-qb="' + encodeURIComponent(x.qbName) + '"]');
+    return sel && sel.value ? sel.value : null;
+  }
+  function invRender(){
+    var d = invParsed; if(!d) return;
+    var nameById = {}; d.customers.forEach(function(c){ nameById[c.id] = c.name; });
+    var already = 0, newRows = [], unm = {};
+    d.list.forEach(function(x){
+      if(x.customerId && d.have[x.num.toLowerCase() + "|" + x.customerId]){ already++; x._status = "have"; return; }
+      x._status = "new"; newRows.push(x);
+      if(!x.customerId){ var u = unm[x.qbName] = unm[x.qbName] || { n: 0, amt: 0 }; u.n++; u.amt += x.amount; }
+    });
+    var addable = newRows.filter(function(x){ return x.customerId; });
+    var addAmt = addable.reduce(function(a, x){ return a + x.amount; }, 0);
+    var kp = document.getElementById("inv-kpis"); kp.innerHTML = "";
+    kp.appendChild(kpiTile("Ready to add", String(addable.length), null));
+    kp.appendChild(kpiTile("Amount to add", fmtUSD(addAmt), null));
+    kp.appendChild(kpiTile("Already on the site", String(already), null));
+    kp.appendChild(kpiTile("Need a customer", String(newRows.length - addable.length), null));
+
+    var unmBox = document.getElementById("inv-unmatched"), ub = document.querySelector("#inv-unmatched-table tbody");
+    var names = Object.keys(unm).sort();
+    ub.innerHTML = "";
+    unmBox.hidden = !names.length;
+    var opts = '<option value="">— skip these —</option>' + d.customers.slice().sort(function(a,b){ return String(a.name).localeCompare(String(b.name)); })
+      .map(function(c){ return '<option value="' + escHtml(c.id) + '">' + escHtml(c.name) + '</option>'; }).join("");
+    names.forEach(function(n){
+      var tr = document.createElement("tr");
+      tr.innerHTML = '<td class="strong">' + escHtml(n) + '</td><td class="num-col num">' + unm[n].n + '</td><td class="num-col num">' + fmtUSD(unm[n].amt) + '</td>' +
+        '<td><select data-qb="' + encodeURIComponent(n) + '">' + opts + '</select></td>';
+      ub.appendChild(tr);
+    });
+    var tb = document.querySelector("#inv-table tbody"); tb.innerHTML = "";
+    var LIM = 200;
+    newRows.slice(0, LIM).forEach(function(x){
+      var tr = document.createElement("tr");
+      tr.innerHTML = '<td class="strong">' + escHtml(x.num) + '</td><td>' + escHtml(x.customerId ? nameById[x.customerId] : x.qbName + " (needs match)") + '</td><td>' + escHtml(fmtDateFull(x.date)) +
+        '</td><td>' + escHtml(x.issuedAs || "—") + '</td><td class="num-col num">' + fmtUSD(x.amount) + '</td>';
+      tb.appendChild(tr);
+    });
+    document.getElementById("inv-more").textContent = newRows.length > LIM ? "Showing the first " + LIM + " of " + newRows.length + " new invoices." :
+      (newRows.length ? "" : "Nothing new to add — every invoice in this file is already on the site.");
+    document.getElementById("inv-save-btn").disabled = !newRows.length;
+  }
+  async function invSave(){
+    var d = invParsed; if(!d) return;
+    var statusEl = document.getElementById("inv-status"), btn = document.getElementById("inv-save-btn");
+    var rows = [], skipped = 0;
+    d.list.forEach(function(x){
+      if(x._status !== "new") return;
+      var cid = invCustomerFor(x);
+      if(!cid){ skipped++; return; }
+      if(d.have[x.num.toLowerCase() + "|" + cid]){ return; }
+      rows.push({
+        id: "qbu-" + x.date + "-" + slugify(x.num) + "-" + slugify(cid),
+        invoice_number: x.num, customer_id: cid, issued_as: x.issuedAs, invoice_date: x.date, invoice_amount: x.amount,
+        notes: "Imported from QuickBooks. QB customer: " + x.qbName + (x.due ? ". Due " + x.due : "")
+      });
+    });
+    if(!rows.length){ statusEl.textContent = "Nothing to add."; statusEl.style.color = "var(--text-secondary)"; return; }
+    btn.disabled = true; btn.textContent = "Adding…"; statusEl.textContent = ""; statusEl.style.color = "var(--text-secondary)";
+    try{
+      for(var i=0; i<rows.length; i+=200){
+        var res = await sb.from("invoices").upsert(rows.slice(i, i+200), { onConflict: "id", ignoreDuplicates: true });
+        if(res.error) throw res.error;
+      }
+      statusEl.textContent = "Added " + rows.length + " invoice(s)" + (skipped ? "; skipped " + skipped + " with no customer picked." : ".");
+      statusEl.style.color = "var(--good)";
+      rows.forEach(function(r){ d.have[r.invoice_number.toLowerCase() + "|" + r.customer_id] = 1; });
+      d.list.forEach(function(x){ if(x._status === "new" && invCustomerFor(x)) x.customerId = invCustomerFor(x); });
+      invRender();
+      refreshInvoices();
+    }catch(err){
+      statusEl.textContent = "Couldn't save: " + ((err && err.message) || "unknown error");
+      statusEl.style.color = "var(--critical)";
+    }finally{
+      btn.disabled = false; btn.textContent = "Add invoices";
+    }
+  }
+
+  // ====================================================================
+  // Weekly placement sheet (per-employee WC/state report) -> placements table
+  // ====================================================================
+  var plcUp = null;
+  function personKey(name){
+    var toks = String(name || "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter(function(t){ return t.length > 1; });
+    return toks.sort().join(" ");
+  }
+  function resolveSiteCustomer(loc, customers){
+    var codeRaw = loc.office_code ? String(loc.office_code).trim() : "";
+    var cands = [];
+    if(codeRaw){
+      cands = customers.filter(function(c){ var oc = String(c.office_code || ""); return oc === codeRaw || oc.split(":").pop() === codeRaw; });
+    }
+    if(!cands.length){
+      var n1 = nameNorm(loc.staffing_location), n2 = nameNorm(loc.customer);
+      cands = customers.filter(function(c){ var cn = nameNorm(c.name); return cn === n1 || (n2 && cn === n2); });
+      var byLoc = cands.filter(function(c){ return nameNorm(c.name) === n1; });
+      if(byLoc.length) cands = byLoc;
+    }
+    if(cands.length > 1){
+      var coId = "co-" + slugify(loc.company);
+      var f = cands.filter(function(c){ return c.company_id === coId; });
+      if(f.length) cands = f;
+    }
+    if(cands.length > 1){
+      var f2 = cands.filter(function(c){ return nameNorm(c.name) === nameNorm(loc.staffing_location); });
+      if(f2.length) cands = f2;
+    }
+    return cands.length === 1 ? cands[0] : null;
+  }
+  async function plcUpRead(){
+    var errEl = document.getElementById("plc-up-err"), warnEl = document.getElementById("plc-up-warn");
+    errEl.style.display = "none"; warnEl.style.display = "none"; warnEl.innerHTML = "";
+    document.getElementById("plc-up-preview").hidden = true;
+    document.getElementById("plc-up-status").textContent = "";
+    plcUp = null;
+    var btn = document.getElementById("plc-up-parse-btn");
+    btn.disabled = true; btn.textContent = "Building…";
+    try{
+      var checkDate = document.getElementById("upl-week-input").value;
+      if(!checkDate) throw new Error("Set the week ending (check date) at the top of this page first.");
+      var f = document.getElementById("plc-up-file").files[0] || document.getElementById("upl-wc-file").files[0];
+      if(!f) throw new Error("Choose the per-employee WC/state report — either here or in the Payroll section above.");
+      var ref = await loadUplRefData();
+      var parsed = await parseWcReportFile(f);
+      var customers = await fetchAllRows("customers", "id,name,office_code,company_id", function(q){ return q.eq("is_deleted", false); });
+      var existing = await fetchAllRows("placements", "*", function(q){ return q.eq("is_deleted", false); });
+
+      var warnings = [], noLoc = {}, noCust = {}, skippedAT = 0, skippedHQ = 0;
+      var want = {};           // personKey|customer_id -> placement wanted this week
+      parsed.rows.forEach(function(er){
+        var company = normalizeCompanyName(er.companyRaw);
+        if(company === "All Truss LLC" || /^all truss llc$/i.test(String(er.companyRaw || "").trim())){ skippedAT++; return; }
+        var loc = resolveLocation(ref, er.locationDesc, company);
+        if(!loc){ var k0 = er.locationDesc + " (" + er.companyRaw + ")"; noLoc[k0] = (noLoc[k0] || 0) + 1; return; }
+        if(loc.staffing_location === "Workforce Strategies"){ skippedHQ++; return; }
+        var cust = resolveSiteCustomer(loc, customers);
+        if(!cust){ noCust[loc.staffing_location] = (noCust[loc.staffing_location] || 0) + 1; return; }
+        var pk = personKey(er.employeeName);
+        if(!pk) return;
+        var key = pk + "|" + cust.id;
+        var st = STATE_NAME_TO_ABBR[String(er.workedState || "").toLowerCase()] || loc.state || "";
+        var w = want[key];
+        if(!w){
+          w = want[key] = { key: key, pk: pk, name: er.employeeName, customerId: cust.id, customerName: cust.name, state: st, wc: er.wcCode || "", gross: 0, hire: xlDateIso(er.hireDate) };
+        }
+        w.gross += er.grossPay;
+        if(!w.wc && er.wcCode) w.wc = er.wcCode;
+      });
+      var wantList = Object.keys(want).map(function(k){ return want[k]; }).sort(function(a, b){ return (a.customerName + a.name).localeCompare(b.customerName + b.name); });
+      if(!wantList.length) throw new Error("No active employees could be matched to a customer, so nothing was built. Check the warnings below.");
+
+      // compare with what is on the site
+      var exByKey = {};
+      existing.forEach(function(p){
+        var k = personKey(p.worker_name) + "|" + p.customer_id;
+        (exByKey[k] = exByKey[k] || []).push(p);
+      });
+      var nNew = 0, nUpd = 0;
+      wantList.forEach(function(w){
+        var list = exByKey[w.key] || [];
+        var pick = list.filter(function(p){ return p.status === "Active"; })[0] || list[0] || null;
+        w.existing = pick;
+        if(pick){ nUpd++; w.how = pick.status === "Active" ? "Active — refresh" : "Rehire (was " + pick.status + ")"; }
+        else { nNew++; w.how = "New"; }
+      });
+      var wantKeys = {}; wantList.forEach(function(w){ wantKeys[w.key] = 1; });
+      var toEnd = existing.filter(function(p){ return p.status === "Active" && !wantKeys[personKey(p.worker_name) + "|" + p.customer_id]; });
+      plcUp = { checkDate: checkDate, want: wantList, toEnd: toEnd };
+
+      var kp = document.getElementById("plc-up-kpis"); kp.innerHTML = "";
+      kp.appendChild(kpiTile("Active this week", String(wantList.length), null));
+      kp.appendChild(kpiTile("New placements", String(nNew), null));
+      kp.appendChild(kpiTile("Already on site", String(nUpd), null));
+      kp.appendChild(kpiTile("To be ended", String(toEnd.length), null));
+      var tb = document.querySelector("#plc-up-table tbody"); tb.innerHTML = "";
+      wantList.forEach(function(w){
+        var tr = document.createElement("tr");
+        tr.innerHTML = '<td class="strong">' + escHtml(w.name) + '</td><td>' + escHtml(w.customerName) + '</td><td>' + escHtml(w.state || "—") + '</td><td>' +
+          escHtml(w.wc || "—") + '</td><td class="num-col num">' + fmtUSD(w.gross) + '</td><td>' + escHtml(w.how) + '</td>';
+        tb.appendChild(tr);
+      });
+      var endBox = document.getElementById("plc-up-ending");
+      if(toEnd.length){
+        var names = toEnd.slice(0, 40).map(function(p){ return p.worker_name; }).join(", ");
+        endBox.innerHTML = "<strong>Will be marked Ended</strong> (Active on the site, not on this sheet): " + escHtml(names) + (toEnd.length > 40 ? " and " + (toEnd.length - 40) + " more" : "") + ".";
+        endBox.hidden = false;
+      } else { endBox.hidden = true; }
+
+      var totalActive = existing.filter(function(p){ return p.status === "Active"; }).length;
+      if(totalActive && toEnd.length > totalActive * 0.5) warnings.push("This would end " + toEnd.length + " of the " + totalActive + " placements currently Active. If that looks wrong, check you chose the full weekly report — or untick “Mark workers not on this sheet as Ended”.");
+      Object.keys(noLoc).forEach(function(k){ warnings.push(noLoc[k] + " row(s) skipped: couldn't match location " + k + " to a staffing location."); });
+      Object.keys(noCust).forEach(function(k){ warnings.push(noCust[k] + " employee row(s) at " + k + " skipped: couldn't find exactly one matching customer on the Customers tab."); });
+      if(skippedAT) warnings.push(skippedAT + " All Truss LLC employee row(s) left out — All Truss is tracked separately.");
+      if(skippedHQ) warnings.push(skippedHQ + " Workforce Strategies HQ row(s) left out (staff, not placements).");
+      if(warnings.length){ warnEl.innerHTML = warnings.map(function(t){ return "<div>⚠ " + escHtml(t) + "</div>"; }).join(""); warnEl.style.display = "block"; }
+      document.getElementById("plc-up-preview").hidden = false;
+    }catch(err){
+      errEl.textContent = (err && err.message) || "Couldn't build the placement sheet.";
+      errEl.style.display = "block";
+    }finally{
+      btn.disabled = false; btn.textContent = "Build placement sheet";
+    }
+  }
+  async function plcUpSave(){
+    var d = plcUp; if(!d) return;
+    var statusEl = document.getElementById("plc-up-status"), btn = document.getElementById("plc-up-save-btn");
+    var endIt = document.getElementById("plc-up-end").checked;
+    btn.disabled = true; btn.textContent = "Saving…"; statusEl.textContent = ""; statusEl.style.color = "var(--text-secondary)";
+    try{
+      var upd = [], ins = [];
+      d.want.forEach(function(w){
+        if(w.existing){
+          upd.push(Object.assign({}, w.existing, { status: "Active", state: w.state || w.existing.state, wc_class_code: w.wc || w.existing.wc_class_code, check_date: d.checkDate, end_date: null }));
+        } else {
+          ins.push({ id: genId("plc"), worker_name: w.name, customer_id: w.customerId, state: w.state || null, wc_class_code: w.wc || null,
+            status: "Active", start_date: w.hire || null, check_date: d.checkDate });
+        }
+      });
+      var ended = 0;
+      if(endIt){
+        d.toEnd.forEach(function(p){ upd.push(Object.assign({}, p, { status: "Ended", end_date: d.checkDate })); ended++; });
+      }
+      for(var i=0; i<ins.length; i+=200){
+        var r1 = await sb.from("placements").insert(ins.slice(i, i+200));
+        if(r1.error) throw r1.error;
+      }
+      for(var j=0; j<upd.length; j+=200){
+        var r2 = await sb.from("placements").upsert(upd.slice(j, j+200), { onConflict: "id" });
+        if(r2.error) throw r2.error;
+      }
+      statusEl.textContent = "Saved: " + d.want.length + " active placement(s) (" + ins.length + " new)" + (endIt ? ", " + ended + " ended." : ".");
+      statusEl.style.color = "var(--good)";
+      plcUp = null;
+      refreshPlacements();
+    }catch(err){
+      statusEl.textContent = "Couldn't save: " + ((err && err.message) || "unknown error");
+      statusEl.style.color = "var(--critical)";
+    }finally{
+      btn.disabled = false; btn.textContent = "Update placements";
     }
   }
 
@@ -5974,6 +6585,11 @@ window.addEventListener("unhandledrejection", function(e){
     }
     document.getElementById("upl-parse-btn").addEventListener("click", uplComputePreview);
     document.getElementById("upl-submit-btn").addEventListener("click", uplSubmit);
+    document.getElementById("upl-qb-csv-btn").addEventListener("click", uplQbDownload);
+    document.getElementById("inv-parse-btn").addEventListener("click", invRead);
+    document.getElementById("inv-save-btn").addEventListener("click", invSave);
+    document.getElementById("plc-up-parse-btn").addEventListener("click", plcUpRead);
+    document.getElementById("plc-up-save-btn").addEventListener("click", plcUpSave);
     document.getElementById("bs-parse-btn").addEventListener("click", bsRead);
     document.getElementById("bs-save-btn").addEventListener("click", bsSave);
   }
