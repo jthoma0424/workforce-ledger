@@ -1559,7 +1559,7 @@
                 <div class="panel-sub" id="bills-preview-totals" style="margin:8px 0 10px;"></div>
                 <div class="table-scroll">
                   <table class="data-table" id="bills-preview-table">
-                    <thead><tr><th>Vendor</th><th>Category/Account</th><th>Description</th><th class="num-col">Amount</th></tr></thead>
+                    <thead><tr><th>Vendor</th><th>Category/Account</th><th>Description</th><th>Class</th><th class="num-col">Amount</th></tr></thead>
                     <tbody></tbody>
                   </table>
                 </div>
@@ -1853,7 +1853,7 @@
       </div>
     </main>
 
-    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v6</footer>
+    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v7</footer>
   </div>
 
 </div>
@@ -5595,6 +5595,18 @@ window.addEventListener("unhandledrejection", function(e){
   // check_date ("week"), pulled from the payroll_data and fsg_commission rows
   // already loaded by loadPayroll(). Rows with no (or zero) dollar amount are
   // skipped rather than producing an empty $0 line item.
+  // QuickBooks class for each bill line = STATE:office code (same as the Frontier invoice file), from the staffing locations list
+  var billLocRows = [];
+  async function ensureBillLocs(){
+    try{ var r = await loadUplRefData(); billLocRows = (r && r.locations) || []; }catch(e){ billLocRows = []; }
+  }
+  function billClassFor(company, location, state){
+    var loc = String(location || "").trim().toLowerCase();
+    var hits = billLocRows.filter(function(l){ return String(l.staffing_location || "").trim().toLowerCase() === loc; });
+    var one = hits.filter(function(l){ return l.company === company; })[0] || (hits.length === 1 ? hits[0] : null);
+    if(!one || !one.office_code) return "";
+    return (one.state || state || "") + ":" + one.office_code;
+  }
   function computeBillLines(week){
     var wcLines = [];
     payrollDataCache.forEach(function(p){
@@ -5607,7 +5619,8 @@ window.addEventListener("unhandledrejection", function(e){
         description: isInternal
           ? ("Internal payroll — " + WC_INTERNAL_COMPANY)
           : ((p.company ? p.company + " — " : "") + (p.staffing_location || p.customer || "Staffing location")),
-        amount: amt
+        amount: amt,
+        klass: isInternal ? "" : billClassFor(p.company, p.staffing_location, p.state)
       });
     });
     var fsgLines = [];
@@ -5622,7 +5635,8 @@ window.addEventListener("unhandledrejection", function(e){
       fsgLines.push({
         category: FSG_CATEGORY,
         description: (f.company ? f.company + " — " : "") + (f.staffing_location || "Location"),
-        amount: amt
+        amount: amt,
+        klass: billClassFor(f.company, f.staffing_location, f.state)
       });
     });
     return { wc: wcLines, fsg: fsgLines };
@@ -5641,10 +5655,10 @@ window.addEventListener("unhandledrejection", function(e){
       items.forEach(function(item, idx){
         if(idx === 0){
           rows.push(csvRow([billNumber, vendor, "", BILL_TERMS, dateStr, dateStr, "", memo,
-            "Category Details", item.category, "", "", "", item.description, item.amount.toFixed(2), "", "", "", ""]));
+            "Category Details", item.category, "", "", "", item.description, item.amount.toFixed(2), "", "", "", item.klass || ""]));
         }else{
           rows.push(csvRow([billNumber, "", "", "", "", "", "", "",
-            "Category Details", item.category, "", "", "", item.description, item.amount.toFixed(2), "", "", "", ""]));
+            "Category Details", item.category, "", "", "", item.description, item.amount.toFixed(2), "", "", "", item.klass || ""]));
         }
       });
     }
@@ -5692,6 +5706,7 @@ window.addEventListener("unhandledrejection", function(e){
           '<td class="strong">'+escHtml(vendor)+'</td>'+
           '<td>'+escHtml(item.category)+'</td>'+
           '<td>'+escHtml(item.description)+'</td>'+
+          '<td>'+(item.klass ? escHtml(item.klass) : '<span style="color:var(--critical);">none</span>')+'</td>'+
           '<td class="num-col num">'+fmtUSD(item.amount)+'</td>';
         body.appendChild(tr);
       });
@@ -5700,20 +5715,24 @@ window.addEventListener("unhandledrejection", function(e){
     addRows(FSG_VENDOR, lines.fsg);
     if(!lines.wc.length && !lines.fsg.length){
       var emptyRow = document.createElement("tr");
-      emptyRow.innerHTML = '<td colspan="4" class="empty-cell">No workers\' comp or FSG commission amounts recorded for this week.</td>';
+      emptyRow.innerHTML = '<td colspan="5" class="empty-cell">No workers\' comp or FSG commission amounts recorded for this week.</td>';
       body.appendChild(emptyRow);
     }
     var wcTotal = lines.wc.reduce(function(s,l){ return s + l.amount; }, 0);
     var fsgTotal = lines.fsg.reduce(function(s,l){ return s + l.amount; }, 0);
-    totalsEl.textContent = "Key Risk bill total: " + fmtUSD(wcTotal) + "   ·   Frontier Solutions Group LLC bill total: " + fmtUSD(fsgTotal);
+    var noClass = lines.wc.concat(lines.fsg).filter(function(l){ return !l.klass; }).length;
+    totalsEl.textContent = "Key Risk bill total: " + fmtUSD(wcTotal) + "   ·   Frontier Solutions Group LLC bill total: " + fmtUSD(fsgTotal) +
+      (noClass ? "   ·   " + noClass + " line(s) have no class code (no office code on that location)" : "");
   }
 
   function renderBillsSection(){
     populateBillsWeekSelect();
     renderBillsPreview();
+    ensureBillLocs().then(renderBillsPreview);
   }
 
-  function downloadBillsCsv(){
+  async function downloadBillsCsv(){
+    await ensureBillLocs();
     var select = document.getElementById("bills-week-select");
     var week = select && select.value;
     if(!week) return;
