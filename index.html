@@ -1595,7 +1595,7 @@
                   <input type="file" id="upl-wc-file" accept=".xlsx,.xls">
                 </div>
                 <div class="crud-field">
-                  <label for="upl-tower-files">Invoice PDFs: Tower (3), Timber Creek, Magic Coil, Midland (at least one)</label>
+                  <label for="upl-tower-files">Invoice PDFs: Tower (3), Timber Creek, Magic Coil, Midland, plus any contract labor bill such as 84 Coal Center (at least one)</label>
                   <input type="file" id="upl-tower-files" accept=".pdf" multiple>
                 </div>
               </div>
@@ -1853,7 +1853,7 @@
       </div>
     </main>
 
-    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v5</footer>
+    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v6</footer>
   </div>
 
 </div>
@@ -5951,6 +5951,16 @@ window.addEventListener("unhandledrejection", function(e){
       var content = await page.getTextContent();
       text += content.items.map(function(it){ return it.str; }).join(" ") + "\n";
     }
+    // CACH Labor / Frontier "contract labor" bill for one location, e.g. "NAME (84 LUMBER - COAL CENTER)  Payroll  Bonus  TOTAL ... Total Payroll: 12,197.29 x 8% Markup"
+    var clName = text.match(/NAME\s*\(\s*([^)]+?)\s*\)\s*Payroll/i);
+    var clTot = text.match(/Total\s+Payroll\s*:?\s*\$?\s*(\d[\d,\s]*\.\d{2})/i);
+    if(clName && clTot && !/INVOICE AMOUNT/i.test(text)){
+      var body = text.split(/Payroll\s+Bonus\s+TOTAL/i)[1] || "";
+      body = body.split(/\bFee\b|Total\s+Payroll/i)[0] || "";
+      var emp = body.match(/\d[\d,]*\.\d{2}\s+\d[\d,]*\.\d{2}\s+\d[\d,]*\.\d{2}/g) || [];
+      var numM = text.match(/Invoice Number\s*:?\s*([A-Za-z0-9\-]+)/i);
+      return { contractLabor: true, fileName: file.name, locationRaw: clName[1], amount: Number(clTot[1].replace(/[,\s]/g, "")), employees: emp.length, invoiceNumber: numM ? numM[1] : "" };
+    }
     return parseInvoiceText(text, file.name);
   }
   function parseInvoiceText(text, fileName){
@@ -6135,6 +6145,28 @@ window.addEventListener("unhandledrejection", function(e){
       for(var t=0; t<towerFiles.length; t++){
         try{
           var inv = await parseTowerInvoicePdf(towerFiles[t]);
+          if(inv.contractLabor){
+            var raw = String(inv.locationRaw).trim();
+            var cands = [raw, raw.replace(/^84\s*lumber\s*[-\u2013]\s*/i, "84 "), raw.replace(/^84\s*lumber\s*[-\u2013]\s*/i, ""), raw.replace(/\s*[-\u2013]\s*/g, " ")];
+            var clLoc = null;
+            for(var ci=0; ci<cands.length && !clLoc; ci++){
+              var kk = cands[ci].toLowerCase();
+              if(ref.byLoc[kk] && ref.byLoc[kk].length === 1) clLoc = ref.byLoc[kk][0];
+              else if(QB_LOC_ALIASES && QB_LOC_ALIASES[kk.replace(/[^a-z0-9]/g, "")] && ref.byLoc[QB_LOC_ALIASES[kk.replace(/[^a-z0-9]/g, "")].toLowerCase()]) clLoc = ref.byLoc[QB_LOC_ALIASES[kk.replace(/[^a-z0-9]/g, "")].toLowerCase()][0];
+            }
+            if(!clLoc){
+              uplAddWarning(warnings, inv.fileName + ": contract labor bill for \"" + raw + "\" ($" + inv.amount.toFixed(2) + ") doesn't match a known staffing location — not applied.");
+              continue;
+            }
+            var ckey = clLoc.company + "||" + clLoc.staffing_location;
+            if(!byKey[ckey]){
+              byKey[ckey] = { company: clLoc.company, customer: clLoc.customer, staffing_location: clLoc.staffing_location, state: clLoc.state, wages: 0, payroll_taxes: 0, workers_comp: 0, sales: null };
+            }
+            mrtByKey[ckey] = (mrtByKey[ckey] || 0) + inv.amount;
+            if(inv.employees){ var hcm = (hcByKey[ckey] = hcByKey[ckey] || {}); for(var he=0; he<inv.employees; he++) hcm["contract-pdf-" + he] = 1; }
+            uplAddWarning(warnings, clLoc.staffing_location + ": contract labor " + fmtUSD(round2(inv.amount)) + " read from " + inv.fileName + (inv.employees ? " (" + inv.employees + " people)" : "") + ".");
+            continue;
+          }
           var loc2 = resolveLocation(ref, inv.staffingLocation, "Dynamic Capacity Staffing LLC");
           if(!loc2){
             uplAddWarning(warnings, inv.fileName + ": parsed location \"" + inv.staffingLocation + "\" doesn't match a known Tower location — sales not applied.");
