@@ -1853,7 +1853,7 @@
       </div>
     </main>
 
-    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v7</footer>
+    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v8</footer>
   </div>
 
 </div>
@@ -6931,7 +6931,7 @@ window.addEventListener("unhandledrejection", function(e){
     });
     function find(fn){ for(var i=0;i<lines.length;i++){ if(fn(lines[i])) return i; } return -1; }
     var start = find(function(l){ return /^bank accounts$/i.test(l.label); });
-    var end = find(function(l){ return /^total for bank accounts$/i.test(l.label); });
+    var end = find(function(l){ return /^total( for)? bank accounts$/i.test(l.label); });
     if(start === -1 || end === -1 || end < start){
       throw new Error("Couldn't find the \"Bank Accounts\" / \"Total for Bank Accounts\" lines. Is this the QuickBooks Balance Sheet export?");
     }
@@ -6975,7 +6975,21 @@ window.addEventListener("unhandledrejection", function(e){
       var rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
       var res = parseBalanceSheetRows(rows);
       var dateEl = document.getElementById("bs-date");
-      if(res.date) dateEl.value = res.date;
+      var dateNote = null;
+      if(res.date){
+        // QuickBooks was run through Sunday 10/18 but weeks here end on Saturday: use the Saturday on or just before the report date (keep the one already typed if it fits)
+        var fd = new Date(res.date + "T00:00:00Z"), dow = fd.getUTCDay();
+        if(dow !== 6){
+          var back = (dow + 1) % 7;
+          var sat = new Date(fd.getTime() - back * 86400000).toISOString().slice(0, 10);
+          var cur = dateEl.value;
+          var curOk = cur && new Date(cur + "T00:00:00Z").getUTCDay() === 6 && cur <= res.date && (fd - new Date(cur + "T00:00:00Z")) <= 6 * 86400000;
+          var useDate = curOk ? cur : sat;
+          dateNote = "The balance sheet says it is as of " + fmtDateFull(res.date) + ", which is not a Saturday, so it will be saved for the Saturday accrual date " + fmtDateFull(useDate) + ". Change the \"As of\" box if that is wrong.";
+          res.date = useDate;
+        }
+        dateEl.value = res.date;
+      }
       if(!dateEl.value) throw new Error("Couldn't find the as-of date in the file \u2014 pick it in the \"As of\" box and click Read balance sheet again.");
       bsParsed = res;
       var kp = document.getElementById("bs-kpis");
@@ -6991,6 +7005,7 @@ window.addEventListener("unhandledrejection", function(e){
         tb.appendChild(tr);
       });
       var w = res.warnings.slice();
+      if(dateNote) w.push(dateNote);
       var dd = new Date(dateEl.value + "T00:00:00Z");
       if(!isNaN(dd) && dd.getUTCDay() !== 6) w.push("The as-of date is not a Saturday. Weeks on this site end on Saturday, so this balance sheet won't line up with a payroll week.");
       if(w.length){ warnEl.innerHTML = w.map(function(t){ return "<div>\u26A0 " + escHtml(t) + "</div>"; }).join(""); warnEl.style.display = "block"; }
