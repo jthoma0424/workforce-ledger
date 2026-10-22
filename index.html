@@ -5953,7 +5953,8 @@ window.addEventListener("unhandledrejection", function(e){
     }
     // CACH Labor / Frontier "contract labor" bill for one location, e.g. "NAME (84 LUMBER - COAL CENTER)  Payroll  Bonus  TOTAL ... Total Payroll: 12,197.29 x 8% Markup"
     var clName = text.match(/NAME\s*\(\s*([^)]+?)\s*\)\s*Payroll/i);
-    var clTot = text.match(/Total\s+Payroll\s*:?\s*\$?\s*(\d[\d,\s]*\.\d{2})/i);
+    // the PDF's text order varies: either "Total Payroll: 12,197.29 x 8% Markup" or "12,197.29 x 8% Markup ... Total Payroll:"; the figure is the one right before "x N% Markup"
+    var clTot = text.match(/(\d[\d,\s]*\.\d{2})\s*x\s*\d+(?:\.\d+)?\s*%\s*Markup/i) || text.match(/Total\s+Payroll\s*:?\s*\$?\s*(\d[\d,\s]*\.\d{2})/i);
     if(clName && clTot && !/INVOICE AMOUNT/i.test(text)){
       var body = text.split(/Payroll\s+Bonus\s+TOTAL/i)[1] || "";
       body = body.split(/\bFee\b|Total\s+Payroll/i)[0] || "";
@@ -6572,7 +6573,7 @@ window.addEventListener("unhandledrejection", function(e){
       var list = parsed.rows.filter(function(x){ return !from || x.date >= from; });
       if(!list.length) throw new Error("No invoices found in that file" + (from ? " on or after " + fmtDateFull(from) : "") + ".");
 
-      var customers = (await fetchAllRows("customers", "id,name", function(q){ return q.eq("is_deleted", false); }));
+      var customers = (await fetchAllRows("customers", "id,name,company_id", function(q){ return q.eq("is_deleted", false); }));
       var existing = await fetchAllRows("invoices", "invoice_number,customer_id");
       var have = {};
       existing.forEach(function(e){ have[String(e.invoice_number).trim().toLowerCase() + "|" + e.customer_id] = 1; });
@@ -6583,7 +6584,22 @@ window.addEventListener("unhandledrejection", function(e){
         x.customerId = matchCache[x.qbName];
       });
       // drop repeats inside the file (same QB customer + invoice number)
-      list = list.filter(function(x){ var k = x.qbName + "|" + x.num.toLowerCase(); if(seen[k]){ dupInFile++; return false; } seen[k] = 1; return true; });
+      list = list.filter(function(x){ var k = x.qbName + "|" + x.num.toLowerCase() + "|" + (x.billedBy || "") + "|" + x.amount.toFixed(2); if(seen[k]){ dupInFile++; return false; } seen[k] = 1; return true; });
+      // Comtech is billed through two entities under the same invoice number: the larger invoice is Southeast Workforce's Comtech, the smaller is Summit Strategies'
+      var comtechSE = customers.filter(function(c){ return nameNorm(c.name) === "comtech" && /southeast-workforce-llc$/i.test(String(c.company_id || "")); });
+      var comtechSS = customers.filter(function(c){ return nameNorm(c.name) === "comtech" && /summit/i.test(String(c.company_id || "")); });
+      if(comtechSE.length === 1 && comtechSS.length === 1){
+        var grp = {};
+        list.forEach(function(x){ if(nameNorm(x.qbName) === "comtech"){ (grp[x.date + "|" + x.num.toLowerCase()] = grp[x.date + "|" + x.num.toLowerCase()] || []).push(x); } });
+        Object.keys(grp).forEach(function(k){
+          var g = grp[k].slice().sort(function(a, b){ return b.amount - a.amount; });
+          if(g.length >= 2){ g.forEach(function(x, i){ x.customerId = i === 0 ? comtechSE[0].id : comtechSS[0].id; }); }
+          else {
+            var b = String(g[0].billedBy || "").toLowerCase();
+            if(/summit/.test(b)) g[0].customerId = comtechSS[0].id; else if(/southeast workforce llc/.test(b)) g[0].customerId = comtechSE[0].id;
+          }
+        });
+      }
       invParsed = { list: list, customers: customers, have: have };
       invRender();
 
