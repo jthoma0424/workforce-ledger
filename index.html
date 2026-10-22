@@ -1853,7 +1853,7 @@
       </div>
     </main>
 
-    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v3</footer>
+    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v4</footer>
   </div>
 
 </div>
@@ -5958,9 +5958,10 @@ window.addEventListener("unhandledrejection", function(e){
     while((m = amtRe.exec(text)) !== null) amtMatch = m;   // the last one is the grand total
     var periodMatch = text.match(/Payroll Period\s*(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})/i);
     var numMatch = text.match(/Invoice Number\s+([A-Za-z0-9\-]+)/i);
-    var tower = text.match(/Tower Extrusions\s*-\s*([A-Za-z]+)/i);
+    // "Tower Extrusions - Olney, TX" (location = the town) or "Tower Extrusions - Wylie, TX (Martinez)" (two Wylie sites: the name in brackets is the location)
+    var tower = text.match(/Tower Extrusions\s*-\s*([A-Za-z]+)(?:\s*,\s*[A-Za-z]{2}\s*\(\s*([A-Za-z]+)\s*\))?/i);
     var loc = null;
-    if(tower) loc = "Tower " + tower[1].charAt(0).toUpperCase() + tower[1].slice(1).toLowerCase();
+    if(tower){ var tn = tower[2] || tower[1]; loc = "Tower " + tn.charAt(0).toUpperCase() + tn.slice(1).toLowerCase(); }
     else {
       var hay = text + " " + (fileName || "");
       if(/midland truss/i.test(hay)) loc = "Midland Truss";
