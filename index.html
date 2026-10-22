@@ -1094,6 +1094,24 @@
             </div>
           </section>
         </div>
+
+        <div class="panel-row admin-only" id="at-plates-row" style="grid-template-columns:1fr;" hidden>
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Plate name matches</div>
+                <div class="panel-sub">Plates are matched to QuickBooks by size automatically (Residential and Commercial &rarr; Mitek, Agriculture &rarr; Eagle). If a plate on the Material Summary is named differently in QuickBooks, add one line: <code>Eagle: MT20 5x6 = 5x6 HS</code> (software name = the QuickBooks item name). Start the line with <code>Eagle:</code> or <code>Mitek:</code> to limit it to that plate type. Plates still using the software price are listed under &ldquo;Products with no QuickBooks cost&rdquo; on the Jobs tab.</div>
+              </div>
+            </div>
+            <div class="crud-field">
+              <textarea id="at-plates-text" rows="4" style="width:100%; max-width:420px; font-family:ui-monospace,Menlo,Consolas,monospace;"></textarea>
+            </div>
+            <div class="row-actions" style="margin-top:10px;">
+              <button type="button" class="btn-primary" id="at-plates-save-btn">Save plate matches</button>
+              <span id="at-plates-status" style="margin-left:10px; color:var(--text-secondary); font-size:13px;"></span>
+            </div>
+          </section>
+        </div>
         </div>
       </div>
     </main>
@@ -1835,7 +1853,7 @@
       </div>
     </main>
 
-    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v2</footer>
+    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v3</footer>
   </div>
 
 </div>
@@ -7300,9 +7318,9 @@ window.addEventListener("unhandledrejection", function(e){
         atBuildCosts(await atFetchAll("at_costs", "id")); atState.costsMissing = false;
       }catch(e2){ atBuildCosts([]); atState.costsMissing = true; }
       try{
-        var sr = await sb.from("at_settings").select("key,value").in("key", ["short_map", "substitutions"]);
+        var sr = await sb.from("at_settings").select("key,value").in("key", ["short_map", "substitutions", "plate_map"]);
         if(!sr.error && Array.isArray(sr.data)) sr.data.forEach(function(row){
-          if(row.value && typeof row.value === "object"){ if(row.key === "short_map") atState.shorts = row.value; else if(row.key === "substitutions") atState.subs = row.value; }
+          if(row.value && typeof row.value === "object"){ if(row.key === "short_map") atState.shorts = row.value; else if(row.key === "substitutions") atState.subs = row.value; else if(row.key === "plate_map") atState.plateMap = row.value; }
         });
       }catch(e3){ /* keep defaults */ }
     }catch(err){
@@ -7332,6 +7350,7 @@ window.addEventListener("unhandledrejection", function(e){
     var m = String(name || "").trim().match(/^(\d+x\d+)\s+SP\s+2400F\b/i);
     return m ? m[1] + " SP DSS" : name;
   }
+  atState.plateMap = {};       // "Eagle: MT20 5x6" -> "Eagle: 5x6 HS"  (software plate -> QuickBooks plate item)
   atState.costsMissing = false;
   var atCostParsed = null;     // { month, items, asOf, fileName }
 
@@ -7356,7 +7375,15 @@ window.addEventListener("unhandledrejection", function(e){
   }
   function atPlateKeyFromQB(parent, label){
     var n = String(label).toLowerCase().replace(/\s+/g, "");
-    if(/eagle/i.test(parent)) return atPlateKey("eagle", n);
+    if(/eagle/i.test(parent)){
+      var em = String(label).trim().match(/^MT(?:20|18)?(HS)?\s+(.+)$/i);   // an Eagle item named like the software ("MT18HS 3x8") is read the same way
+      if(em) return atPlateKeyFromSoftware(label, "eagle");
+      return atPlateKey("eagle", n);
+    }
+    if(/^mt\d*(hs)?\s*\S/i.test(String(label).trim()) && /\s/.test(String(label).trim())){
+      var k = atPlateKeyFromSoftware(label, "mitek");           // "MT20 3x4" / "MT18HS 3x8" (current export)
+      if(k) return k;
+    }
     var m = n.match(/^(.*)m18g$/);
     return m ? atPlateKey("mitek18", m[1]) : atPlateKey("mitek", n);
   }
@@ -7391,12 +7418,20 @@ window.addEventListener("unhandledrejection", function(e){
       if(label.indexOf(":") > -1){ var parts = label.split(":"); parent = parts[0].trim(); label = parts[parts.length - 1].trim(); indented = true; }
       var qty = atNum(rw[qc]), val = atNum(rw[vc]);
       var lm = label.match(/^(.*?)\s+-\s+(\d{1,2}-\d{2}-\d{2})$/), item = null;
+      var isHeader = rw[qc] === null || rw[qc] === undefined || rw[qc] === "";   // section rows ("Eagle Plates", "Lumber") carry no quantity
+      var inPlates = parent && /mitek|eagle/i.test(parent);
       if(lm){
         item = { kind: "L", name: label, key: atLumberKey(lm[1], lm[2]) };
+      }else if(isHeader && !inPlates || (isHeader && !indented)){
+        parent = label; continue;
+      }else if(inPlates && label.toLowerCase() === parent.trim().toLowerCase()){
+        continue;                                    // the "Eagle Plates / Not specified" filler row
+      }else if(inPlates && (indented || !isHeader)){
+        // the export has two layouts: plates indented under "Mitek Plates"/"Eagle Plates" (short names like "3x8m18g"),
+        // or flat under a section row with the full names ("MT18HS 3x8", "MT20 1.5 x4"; Eagle: "3x8 HS", "10X14 HS")
+        item = { kind: "P", name: parent.trim() + " - " + label, key: atPlateKeyFromQB(parent, label) };
       }else if(!indented){
         parent = label; continue;
-      }else if(parent && /mitek|eagle/i.test(parent)){
-        item = { kind: "P", name: parent.trim() + " - " + label, key: atPlateKeyFromQB(parent, label) };
       }else{ skipped++; continue; }
       var prev = byKey[item.key];
       if(prev){ prev.qty += qty || 0; prev.asset += val || 0; }
@@ -7525,6 +7560,46 @@ window.addEventListener("unhandledrejection", function(e){
       st.textContent = "Couldn't save: " + msg; st.style.color = "var(--critical)";
     }finally{ btn.disabled = false; }
   }
+  function atPlatesText(){
+    return Object.keys(atState.plateMap).map(function(k){ return k + " = " + atState.plateMap[k]; }).join("\n");
+  }
+  function atSplitFam(txt, defFam){
+    var m = String(txt || "").trim().match(/^(eagle|mitek)\s*:\s*(.+)$/i);
+    return m ? { fam: m[1].toLowerCase(), name: m[2].trim() } : { fam: defFam, name: String(txt || "").trim() };
+  }
+  // A hand-made match for a plate (software name -> the plate as it is named in QuickBooks), if there is one for this family.
+  function atPlateMapKey(name, fam){
+    var hit = null, nn = atNormName(name);
+    Object.keys(atState.plateMap).forEach(function(k){
+      var l = atSplitFam(k, null);
+      if(atNormName(l.name) !== nn || (l.fam && l.fam !== fam)) return;
+      var r = atSplitFam(atState.plateMap[k], l.fam || fam);
+      hit = atPlateKeyFromQB(r.fam === "eagle" ? "Eagle Plates" : "Mitek Plates", r.name);
+    });
+    return hit;
+  }
+  async function atSavePlates(){
+    var st = document.getElementById("at-plates-status"), btn = document.getElementById("at-plates-save-btn");
+    var map = {}, bad = [];
+    document.getElementById("at-plates-text").value.split(/\r?\n/).forEach(function(line){
+      if(!line.trim()) return;
+      var i = line.indexOf("=");
+      if(i < 1 || !line.slice(i + 1).trim()) bad.push(line.trim()); else map[line.slice(0, i).trim()] = line.slice(i + 1).trim();
+    });
+    if(bad.length){ st.textContent = "Can't read: " + bad.slice(0, 3).join("; ") + ". Use the form  Eagle: MT20 5x6 = 5x6 HS."; st.style.color = "var(--critical)"; return; }
+    btn.disabled = true; st.textContent = "";
+    try{
+      var r = await sb.from("at_settings").upsert({ key: "plate_map", value: map }, { onConflict: "key" });
+      if(r.error) throw r.error;
+      atState.plateMap = map;
+      st.textContent = "Saved."; st.style.color = "var(--good)";
+      atRender();
+    }catch(err){
+      var msg = (err && err.message) || "unknown error";
+      if(/relation .* does not exist|schema cache|Could not find the table/i.test(msg)) msg += " \u2014 run all_truss_costs.sql in Supabase first.";
+      st.textContent = "Couldn't save: " + msg; st.style.color = "var(--critical)";
+    }finally{ btn.disabled = false; }
+  }
   async function atSaveShorts(){
     var st = document.getElementById("at-short-status"), btn = document.getElementById("at-short-save-btn");
     var map = {}, bad = [];
@@ -7564,7 +7639,7 @@ window.addEventListener("unhandledrejection", function(e){
       var rec = { t: l.t, name: l.name, len: l.len || "", qty: l.qty, soft: l.total, costedAs: "", costedQty: null, unit: null, cost: null, basis: "" };
       var cost = null, it;
       if(l.t === "P"){
-        var pk = atPlateKeyFromSoftware(l.name, fam);
+        var pk = atPlateMapKey(l.name, fam) || atPlateKeyFromSoftware(l.name, fam);
         it = pk ? idx.P[pk] : null;
         if(it){ rec.costedAs = it.name; rec.costedQty = l.qty; rec.unit = it.avg; cost = l.qty * it.avg; rec.basis = "direct"; }
       }else{
@@ -7591,7 +7666,7 @@ window.addEventListener("unhandledrejection", function(e){
         }
         if(cost !== null && subst) rec.subst = l.name + " \u2192 " + nm;
       }
-      if(cost === null){ cost = l.total; rec.costedAs = (l.name + (l.len ? " - " + l.len : "")); rec.costedQty = l.qty; rec.basis = "software"; sw++; }
+      if(cost === null){ cost = l.total; rec.costedAs = (l.name + (l.len ? " - " + l.len : "") + (l.t === "P" ? " (" + (fam === "eagle" ? "Eagle" : "Mitek") + ")" : "")); rec.costedQty = l.qty; rec.basis = "software"; sw++; }
       else qb++;
       rec.cost = cost; total += cost; out.lines.push(rec);
       if(rec.shrinkFeet){ out.shrinkFeet += rec.shrinkFeet; out.shrinkVal += rec.shrinkVal; }
@@ -7657,6 +7732,8 @@ window.addEventListener("unhandledrejection", function(e){
     if(ta && document.activeElement !== ta) ta.value = atShortsText();
     var tb2 = document.getElementById("at-subs-text");
     if(tb2 && document.activeElement !== tb2) tb2.value = atSubsText();
+    var tb3 = document.getElementById("at-plates-text");
+    if(tb3 && document.activeElement !== tb3) tb3.value = atPlatesText();
   }
 
   function atCompute(){
@@ -7923,6 +8000,7 @@ window.addEventListener("unhandledrejection", function(e){
   document.getElementById("at-cost-save-btn").addEventListener("click", atSaveCosts);
   document.getElementById("at-short-save-btn").addEventListener("click", atSaveShorts);
   document.getElementById("at-subs-save-btn").addEventListener("click", atSaveSubs);
+  document.getElementById("at-plates-save-btn").addEventListener("click", atSavePlates);
 
   // ====================================================================
   // One review + one update for the whole weekly page
