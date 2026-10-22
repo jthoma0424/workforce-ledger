@@ -1853,7 +1853,7 @@
       </div>
     </main>
 
-    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v4</footer>
+    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v5</footer>
   </div>
 
 </div>
@@ -5954,7 +5954,7 @@ window.addEventListener("unhandledrejection", function(e){
     return parseInvoiceText(text, file.name);
   }
   function parseInvoiceText(text, fileName){
-    var amtRe = /INVOICE AMOUNT\s*\$?\s*([\d,]+\.\d{2})/gi, amtMatch = null, m;
+    var amtRe = /INVOICE AMOUNT\s*\$?\s*(\d[\d,\s]*\.\d{2})/gi, amtMatch = null, m;
     while((m = amtRe.exec(text)) !== null) amtMatch = m;   // the last one is the grand total
     var periodMatch = text.match(/Payroll Period\s*(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})/i);
     var numMatch = text.match(/Invoice Number\s+([A-Za-z0-9\-]+)/i);
@@ -5969,25 +5969,51 @@ window.addEventListener("unhandledrejection", function(e){
       else if(/timber creek/i.test(hay)) loc = "Timber Creek Housing";
     }
     if(!amtMatch) throw new Error(fileName + ": couldn't find an INVOICE AMOUNT line in this PDF.");
-    var invoiceAmount = Number(amtMatch[1].replace(/,/g, ""));
-    // Frontier (CACH Labor) invoices: Sales is the total BEFORE boot/tool or loan deductions, i.e. the last
-    // figure on the wage-type "Totals" line. The "INVOICE AMOUNT" at the bottom is after deductions.
+    var invoiceAmount = Number(amtMatch[1].replace(/[,\s]/g, ""));
+    // Sales is the INVOICE AMOUNT on the invoice, i.e. after any boot/tool or loan deductions.
     var salesAmount = invoiceAmount;
-    if(/Frontier Solutions Group/i.test(text)){
-      var totRe = /Totals\s+\$?\s*([\d,]+\.\d{2})\s+\$?\s*([\d,]+\.\d{2})\s+\$?\s*([\d,]+\.\d{2})/g, tm, cand = null;
-      while((tm = totRe.exec(text)) !== null) cand = Number(tm[3].replace(/,/g, ""));
-      if(cand !== null && cand >= invoiceAmount - 0.005 && cand - invoiceAmount <= 2000) salesAmount = cand;
-    }
+    var isFrontier = /Frontier Solutions Group/i.test(text);
     if(!loc) throw new Error(fileName + ": couldn't tell which location this invoice is for (expected Tower, Midland Truss, Magic Coil or Timber Creek).");
     return {
       fileName: fileName,
       staffingLocation: loc,
       invoiceAmount: invoiceAmount,
       salesAmount: salesAmount,
+      isFrontier: isFrontier,
       invoiceNumber: numMatch ? numMatch[1] : null,
       periodStart: periodMatch ? periodMatch[1] : null,
       periodEnd: periodMatch ? periodMatch[2] : null
     };
+  }
+
+
+  // ---- Sales from the QuickBooks Invoice List by Date (locations that have no PDF invoice) ----
+  var QB_LOC_ALIASES = {
+    "bonnellmichigan": "Bonnell MI", "bonnellgeorgia": "Bonnell GA", "bonnelltennessee": "Bonnell TN", "bonnellindiana": "Bonnell IN",
+    "arizonabuildingsupplytucson": "Arizona Building Supply Tuscon", "wittbuildingmaterials": "Witt Building Components",
+    "84lumbercoalcenter": "84 Coal Center", "townsendbuildingsupply": "Townsend", "probuildalbermarle": "Probuild",
+    "mcintoshboxpallet": "Mcintosh Pallet", "raftersandwallsllc": "Rafters & Walls", "rafterswallsllc": "Rafters & Walls",
+    "apextruss": "Apex", "mobilelumber": "Mobile AL", "novotnycontractingservices": "Novotny", "aroostooktrusses": "Aroostook",
+    "liveoakwillacoochie": "Live Oak Homes - Willacoochie", "liveoakbroxton": "Live Oak Homes - Broxton", "liveoakwaycross": "Live Oak Homes - Waycross"
+  };
+  function qbBillingCompany(entity){
+    var e = String(entity || "").trim();
+    if(!e) return null;
+    if(/^solutions 4 labor/i.test(e)) return "Dynamic Capacity Staffing LLC";   // the QuickBooks entity that bills the Dynamic Capacity locations
+    return normalizeCompanyName(e);
+  }
+  // QuickBooks customer name (e.g. "Bonnell Aluminum:Bonnell Michigan") + the entity that billed it -> payroll_locations row, or null
+  function resolveInvoiceListLocation(ref, qbName, billedBy){
+    var parts = String(qbName || "").split(":"), seg = parts[parts.length - 1], k = nameNorm(seg), full = nameNorm(qbName);
+    var comp = qbBillingCompany(billedBy);
+    var pool = ref.locations.filter(function(l){ return !comp || l.company === comp; });
+    var hits = [];
+    var alias = QB_LOC_ALIASES[k];
+    if(alias) hits = pool.filter(function(l){ return l.staffing_location === alias; });
+    if(!hits.length) hits = pool.filter(function(l){ var n = nameNorm(l.staffing_location); return n === k || n === full; });
+    if(!hits.length){ var byCust = pool.filter(function(l){ return nameNorm(l.customer) === k; }); if(byCust.length === 1) hits = byCust; }
+    if(!hits.length && k.length >= 5) hits = pool.filter(function(l){ var n = nameNorm(l.staffing_location); return n.length >= 5 && (k.indexOf(n) !== -1 || n.indexOf(k) !== -1); });
+    return hits.length === 1 ? hits[0] : null;
   }
 
   // ---- orchestration ----
@@ -6124,16 +6150,52 @@ window.addEventListener("unhandledrejection", function(e){
           if(uplPdfInfo[loc2.staffing_location]) uplAddWarning(warnings, "Two PDFs were chosen for " + loc2.staffing_location + " (" + uplPdfInfo[loc2.staffing_location].fileName + " and " + inv.fileName + ") — using " + inv.fileName + ".");
           uplPdfInfo[loc2.staffing_location] = inv;
           byKey[key2].sales = inv.salesAmount;
-          if(Math.abs(inv.salesAmount - inv.invoiceAmount) > 0.005) uplAddWarning(warnings, loc2.staffing_location + ": Sales uses the invoice total before deductions (" + fmtUSD(inv.salesAmount) + "; the PDF's final amount after deductions is " + fmtUSD(inv.invoiceAmount) + ").");
           if(inv.periodEnd){
             var pe = inv.periodEnd.match(/(\d{2})\/(\d{2})\/(\d{4})/);
             var peIso = pe ? pe[3] + "-" + pe[1] + "-" + pe[2] : null;
-            if(peIso && peIso !== isoAddDays(checkDate, -6)){
+            var peOk = peIso && (peIso === isoAddDays(checkDate, -6) || peIso === isoAddDays(checkDate, -5) || peIso === isoAddDays(checkDate, -7));   // Frontier invoices run Mon-Sun, a day later than the week
+            if(peIso && !peOk){
               uplAddWarning(warnings, inv.fileName + ": invoice payroll period is " + inv.periodStart + " – " + inv.periodEnd + ", which doesn't line up with the week ending you set (" + checkDate + ", i.e. period ending " + isoAddDays(checkDate, -6) + ").");
             }
           }
         }catch(pdfErr){
           uplAddWarning(warnings, "Couldn't parse " + towerFiles[t].name + ": " + pdfErr.message);
+        }
+      }
+
+
+      // 3b) QuickBooks Invoice List by Date -> Sales for every location that has no PDF invoice this week
+      var invListFile = document.getElementById("inv-file").files[0];
+      if(invListFile){
+        try{
+          var ilWb = XLSX.read(await invListFile.arrayBuffer(), { type: "array", cellDates: true });
+          var ilRows = XLSX.utils.sheet_to_json(ilWb.Sheets[ilWb.SheetNames[0]], { header: 1, raw: true, defval: null });
+          var ilParsed = parseInvoiceListRows(ilRows).rows;
+          var winFrom = isoAddDays(checkDate, -12), winTo = isoAddDays(checkDate, -5), seenIl = {}, outside = 0;
+          var salesByKey = {}, unmatchedIl = {}, usedInv = 0, usedAmt = 0;
+          ilParsed.forEach(function(x){
+            var dk = x.qbName + "|" + x.num + "|" + (x.billedBy || "") + "|" + x.amount;
+            if(seenIl[dk]) return; seenIl[dk] = 1;
+            if(x.date < winFrom || x.date > winTo){ outside++; return; }
+            var l = resolveInvoiceListLocation(ref, x.qbName, x.billedBy);
+            if(!l){ var uk = x.qbName + (x.billedBy ? " (billed by " + x.billedBy + ")" : ""); unmatchedIl[uk] = (unmatchedIl[uk] || 0) + x.amount; return; }
+            var lk = l.company + "||" + l.staffing_location;
+            (salesByKey[lk] = salesByKey[lk] || { loc: l, sum: 0, n: 0 });
+            salesByKey[lk].sum += x.amount; salesByKey[lk].n++;
+          });
+          Object.keys(salesByKey).forEach(function(lk){
+            var e = salesByKey[lk], l = e.loc;
+            if(!byKey[lk]){
+              byKey[lk] = { company: l.company, customer: l.customer, staffing_location: l.staffing_location, state: l.state, wages: 0, payroll_taxes: 0, workers_comp: 0, sales: null };
+              uplAddWarning(warnings, l.staffing_location + ": the invoice list has " + fmtUSD(round2(e.sum)) + " of sales but there is no payroll for this location this week, so its cost shows as $0.");
+            }
+            if(byKey[lk].sales === null){ byKey[lk].sales = round2(e.sum); usedInv += e.n; usedAmt += e.sum; }
+          });
+          Object.keys(unmatchedIl).forEach(function(n){ uplAddWarning(warnings, "Invoice list: couldn't match \"" + n + "\" to a staffing location — " + fmtUSD(round2(unmatchedIl[n])) + " not included in Sales."); });
+          if(outside) uplAddWarning(warnings, "Invoice list: " + outside + " invoice(s) dated outside the week (" + winFrom + " to " + winTo + ") were not used for Sales.");
+          if(usedInv) uplAddWarning(warnings, "Sales for " + Object.keys(salesByKey).filter(function(lk){ return byKey[lk] && byKey[lk].sales !== null; }).length + " location(s) came from the invoice list (" + usedInv + " invoice(s), " + fmtUSD(round2(usedAmt)) + "); locations with a PDF invoice use the PDF.");
+        }catch(ilErr){
+          uplAddWarning(warnings, "Couldn't use the invoice list for Sales: " + ((ilErr && ilErr.message) || "unknown error"));
         }
       }
 
@@ -6413,6 +6475,7 @@ window.addEventListener("unhandledrejection", function(e){
       amt: /^(amount|total|invoice amount|total amount)$/,
       due: /^due date$/,
       issued: /^(issued as|billing entity|company|entity)$/,
+      locFull: /^location full name$/,
       type: /^(transaction type|type)$/
     };
     for(var i=0; i<Math.min(rows.length, 40) && hdr === -1; i++){
@@ -6439,7 +6502,8 @@ window.addEventListener("unhandledrejection", function(e){
       out.push({
         date: iso, num: num, qbName: cust, amount: Math.round(amount*100)/100,
         due: col.due !== undefined ? xlDateIso(rw[col.due]) : null,
-        issuedAs: col.issued !== undefined && rw[col.issued] ? String(rw[col.issued]).trim() : null
+        issuedAs: col.issued !== undefined && rw[col.issued] ? String(rw[col.issued]).trim() : null,
+        billedBy: col.locFull !== undefined && rw[col.locFull] ? String(rw[col.locFull]).trim() : null
       });
     }
     return { rows: out, skippedNoNum: skippedNoNum };
