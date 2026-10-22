@@ -888,10 +888,118 @@
     </header>
     <main>
       <div class="wrap">
+        <div class="panel-row admin-only" id="at-upload-row" style="grid-template-columns:1fr;" hidden>
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Add jobs and invoices</div>
+                <div class="panel-sub">Upload the QuickBooks invoices and the Material Summary reports for jobs that have been invoiced. Either one can be uploaded on its own &mdash; jobs and invoices are matched by job number (the Estimate No. on the QuickBooks invoice = the Transaction # on the Material Summary). Uploading the same job or invoice again replaces it.</div>
+              </div>
+            </div>
+            <div class="upl-row">
+              <div class="crud-field">
+                <label for="at-inv-file">QuickBooks invoices (.xlsx) &mdash; optional</label>
+                <input type="file" id="at-inv-file" accept=".xlsx,.xls,.csv">
+              </div>
+              <div class="crud-field">
+                <label for="at-ms-files">Material Summary files (.csv) &mdash; select as many as you like</label>
+                <input type="file" id="at-ms-files" accept=".csv" multiple>
+              </div>
+            </div>
+            <div class="row-actions" style="margin-top:10px;">
+              <button type="button" class="btn-primary" id="at-read-btn">Read files</button>
+            </div>
+            <div class="login-msg err" id="at-err" style="display:none; margin-top:12px;"></div>
+            <div id="at-warn" style="display:none; margin-top:12px; color:var(--text-secondary); font-size:13px;"></div>
+            <div id="at-preview" hidden style="margin-top:14px;">
+              <div class="kpi-grid" id="at-pv-kpis"></div>
+              <div id="at-pv-notes" style="margin-top:12px; color:var(--text-secondary); font-size:13px;"></div>
+              <div class="row-actions" style="margin-top:12px;">
+                <button type="button" class="btn-primary" id="at-save-btn">Save</button>
+                <span id="at-status" style="margin-left:10px; color:var(--text-secondary); font-size:13px;"></span>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div class="loading-row" id="at-loading" hidden><span class="spinner"></span>Loading&hellip;</div>
+        <div class="login-msg err" id="at-load-err" style="display:none; margin-bottom:12px;"></div>
+
         <div class="panel-row" style="grid-template-columns:1fr;">
           <section class="panel">
-            <div class="panel-title">All Truss</div>
-            <div class="panel-sub" style="margin-top:6px;">Nothing to track here yet. Sections for All Truss will be added to this page over time.</div>
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Job profit</div>
+                <div class="panel-sub">Invoiced amount from QuickBooks less material cost from the Material Summary. Material only &mdash; labor, freight and overhead are not included.</div>
+              </div>
+              <div class="crud-field" style="min-width:170px;">
+                <label for="at-month">Invoice month</label>
+                <select id="at-month"></select>
+              </div>
+            </div>
+            <div class="kpi-grid" id="at-kpis"></div>
+          </section>
+        </div>
+
+        <div class="panel-row" style="grid-template-columns:1fr;">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Profit by month</div>
+                <div class="panel-sub">Jobs are counted in the month of their first invoice.</div>
+              </div>
+            </div>
+            <div id="at-chart"></div>
+            <div class="table-scroll" style="margin-top:12px;">
+              <table class="data-table" id="at-hist-table">
+                <thead><tr><th>Month</th><th class="num-col">Jobs</th><th class="num-col">Invoiced</th><th class="num-col">Material</th><th class="num-col">Profit</th><th class="num-col">Margin</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <div class="panel-row" style="grid-template-columns:1fr;">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Jobs</div>
+                <div class="panel-sub" id="at-jobs-sub"></div>
+              </div>
+              <div class="upl-row" style="margin:0;">
+                <div class="crud-field" style="min-width:200px;">
+                  <label for="at-search">Search</label>
+                  <input type="search" id="at-search" placeholder="Job #, name, customer">
+                </div>
+                <div class="crud-field" style="min-width:170px;">
+                  <label for="at-sort">Sort by</label>
+                  <select id="at-sort">
+                    <option value="date">Newest first</option>
+                    <option value="profit_asc">Lowest profit first</option>
+                    <option value="profit_desc">Highest profit first</option>
+                    <option value="margin_asc">Lowest margin first</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table class="data-table" id="at-jobs-table">
+                <thead><tr><th>Job #</th><th>Job / customer</th><th>Invoice date</th><th class="num-col">Invoiced $</th><th class="num-col">Material $</th><th class="num-col">Profit</th><th class="num-col">Margin</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <div class="panel-row" style="grid-template-columns:1fr;" id="at-attn-row">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Needs attention</div>
+                <div class="panel-sub">Items that couldn't be matched, so they are not in the profit numbers above.</div>
+              </div>
+            </div>
+            <div id="at-attn"></div>
           </section>
         </div>
       </div>
@@ -1634,7 +1742,7 @@
       </div>
     </main>
 
-    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build mobile-v1</footer>
+    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trussjobs-v1</footer>
   </div>
 
 </div>
@@ -2988,6 +3096,7 @@ window.addEventListener("unhandledrejection", function(e){
   function enterCompany(which){
     setCompanyScreen(which);
     if(which === "ws") showSection("home");
+    if(which === "alltruss") atLoad();
   }
   function setWhoEmail(email){
     ["who-email", "companies-who-email", "alltruss-who-email"].forEach(function(id){
@@ -6676,6 +6785,495 @@ window.addEventListener("unhandledrejection", function(e){
       btn.disabled = false; btn.textContent = "Save balance sheet";
     }
   }
+
+  // ====================================================================
+  // All Truss: job profit (QuickBooks invoices matched to Material Summary reports)
+  // ====================================================================
+  var atState = { jobs: [], invoices: [], loaded: false, loading: false };
+  var atParsed = null;   // { invoices: [...], jobs: [...] } waiting to be saved
+
+  function atKey(s){ return String(s == null ? "" : s).replace(/\s+/g, "").toUpperCase(); }
+  function atNum(v){
+    if(typeof v === "number") return isFinite(v) ? v : null;
+    if(v == null) return null;
+    var s = String(v).replace(/[\s$,]/g, "");
+    var neg = /^\(.*\)$/.test(s);
+    s = s.replace(/[()]/g, "");
+    if(s === "" || !/^-?\d*\.?\d+$/.test(s)) return null;
+    var n = parseFloat(s);
+    return neg ? -n : n;
+  }
+  function atRound(n){ return Math.round(n * 100) / 100; }
+  function atPad(n){ return (n < 10 ? "0" : "") + n; }
+  function atDate(v){
+    // accepts Excel serials, Date objects, m/d/yyyy text and yyyy-mm-dd text; returns yyyy-mm-dd or null
+    if(v == null || v === "") return null;
+    var d;
+    if(typeof v === "number"){
+      if(v < 20000 || v > 80000) return null;
+      d = new Date(Math.round((v - 25569) * 86400000));
+      return d.getUTCFullYear() + "-" + atPad(d.getUTCMonth() + 1) + "-" + atPad(d.getUTCDate());
+    }
+    if(v instanceof Date){
+      return v.getFullYear() + "-" + atPad(v.getMonth() + 1) + "-" + atPad(v.getDate());
+    }
+    var s = String(v).trim(), m;
+    if((m = s.match(/^(\d{4})-(\d{2})-(\d{2})/))) return m[1] + "-" + m[2] + "-" + m[3];
+    if((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/))){
+      var y = parseInt(m[3], 10); if(y < 100) y += 2000;
+      return y + "-" + atPad(parseInt(m[1], 10)) + "-" + atPad(parseInt(m[2], 10));
+    }
+    return null;
+  }
+  function atCsvRows(text){
+    var rows = [], row = [], cur = "", q = false, i, c;
+    text = String(text).replace(/^﻿/, "");
+    for(i = 0; i < text.length; i++){
+      c = text[i];
+      if(q){
+        if(c === '"'){ if(text[i + 1] === '"'){ cur += '"'; i++; } else q = false; }
+        else cur += c;
+      }else if(c === '"'){ q = true; }
+      else if(c === ","){ row.push(cur); cur = ""; }
+      else if(c === "\n" || c === "\r"){
+        if(c === "\r" && text[i + 1] === "\n") i++;
+        row.push(cur); cur = ""; rows.push(row); row = [];
+      }else cur += c;
+    }
+    if(cur !== "" || row.length){ row.push(cur); rows.push(row); }
+    return rows;
+  }
+  function atClean(s){ return String(s == null ? "" : s).replace(/ /g, " ").replace(/\s+/g, " ").trim(); }
+  var AT_JOB_RE = /\b\d{2}-\d{5,7}[A-Z0-9]{0,4}\b/i;
+
+  function atParseMaterialSummary(text, fileName){
+    var rows = atCsvRows(text), i, j;
+    function after(label){
+      var lk = label.toUpperCase();
+      for(var r = 0; r < rows.length; r++){
+        for(var c = 0; c < rows[r].length; c++){
+          if(atClean(rows[r][c]).toUpperCase() === lk){
+            // next non-empty cell on the same row
+            for(var k = c + 1; k < rows[r].length; k++){ if(atClean(rows[r][k]) !== "") return atClean(rows[r][k]); }
+            return "";
+          }
+        }
+      }
+      return null;
+    }
+    var jobNo = after("TRANSACTION #");
+    if(!jobNo) throw new Error("no TRANSACTION # (is this a Material Summary report?)");
+    var matTotal = atNum(after("TOTAL MATERIAL COST ="));
+    var lumTotal = atNum(after("LUMBER COST ="));
+    var plateTotal = atNum(after("PLATE COST ="));
+    if(matTotal === null) throw new Error("no TOTAL MATERIAL COST line (is this a Material Summary report?)");
+    var lines = [], section = null, sum = 0;
+    for(i = 0; i < rows.length; i++){
+      var row = rows[i], c0 = atClean(row[0]).toUpperCase();
+      if(c0 === "LUMBER SUMMARY"){ section = "L"; i++; continue; }
+      if(c0 === "PLATE SUMMARY"){ section = "P"; i++; continue; }
+      if(c0 === "ANCILLARY ITEMS"){ section = "A"; i++; continue; }
+      if(c0.indexOf("TOTAL LINEAL FEET") === 0){ section = null; continue; }
+      if(section === "L"){
+        var qty = atNum(row[1]), nm = atClean(row[3]), tot = atNum(row[row.length - 1]);
+        if(qty !== null && nm && nm.toUpperCase() !== "FALSE" && tot !== null){
+          lines.push({ t: "L", name: nm, len: atClean(row[2]), qty: qty, total: atRound(tot) });
+          sum += tot;
+        }
+      }else if(section === "P"){
+        var pq = atNum(row[0]), ps = atClean(row[1]), pt = atNum(row[5]);
+        if(pq !== null && ps && pt !== null){
+          lines.push({ t: "P", name: ps, len: "", qty: pq, total: atRound(pt) });
+          sum += pt;
+        }
+      }
+    }
+    var warn = null;
+    if(lumTotal !== null && plateTotal !== null && Math.abs(lumTotal + plateTotal - matTotal) > 1)
+      warn = "lumber + plates (" + fmtUSD(lumTotal + plateTotal) + ") doesn't equal the total material cost (" + fmtUSD(matTotal) + ")";
+    else if(lines.length && Math.abs(sum - matTotal) > 1.5)
+      warn = "the item lines add up to " + fmtUSD(atRound(sum)) + " but the total material cost is " + fmtUSD(matTotal);
+    var rd = null, m;
+    for(i = rows.length - 1; i >= 0 && !rd; i--){
+      for(j = 0; j < rows[i].length; j++){
+        if((m = atClean(rows[i][j]).match(/^(\d{1,2}\/\d{1,2}\/\d{4})\b/))){ rd = atDate(m[1]); break; }
+      }
+    }
+    return {
+      job: {
+        job_number: jobNo,
+        job_name: after("JOB NAME") || "",
+        customer: after("SOLD TO") || "",
+        category: after("JOB CATEGORY") || "",
+        lumber_cost: lumTotal === null ? 0 : atRound(lumTotal),
+        plate_cost: plateTotal === null ? 0 : atRound(plateTotal),
+        material_cost: atRound(matTotal),
+        selling_price: atNum(after("TOTAL SELLING PRICE =")),
+        report_date: rd,
+        source_file: fileName,
+        lines: lines
+      },
+      warn: warn
+    };
+  }
+
+  function atParseInvoices(rows, fileName){
+    // find the header row: has a "Num"-like column and an "Amount"-like column
+    var hdr = -1, cols = null, r, c;
+    function norm(s){ return atClean(s).toLowerCase().replace(/[.:#]/g, ""); }
+    for(r = 0; r < Math.min(rows.length, 30) && hdr < 0; r++){
+      var map = {};
+      (rows[r] || []).forEach(function(cell, idx){
+        var h = norm(cell);
+        if(!h) return;
+        if(/^(num|no|invoice no|invoice num|invoice number|invoice|number|doc number)$/.test(h)) map.num = idx;
+        else if(/^(transaction date|invoice date|date)$/.test(h)) { if(map.date === undefined) map.date = idx; }
+        else if(/^(transaction type|type)$/.test(h)) map.type = idx;
+        else if(/^(estimate no|estimate|estimate number|job no|job number|job|po no|po number)$/.test(h)) { if(map.est === undefined) map.est = idx; }
+        else if(/^(name|customer|customer name)$/.test(h)) map.name = idx;
+        else if(/^(description|memo|memo\/description|memo description|product\/service description)$/.test(h)) { if(map.desc === undefined) map.desc = idx; }
+        else if(/^(amount|total|total amount|total amt)$/.test(h)) map.amount = idx;
+      });
+      if(map.num !== undefined && map.amount !== undefined){ hdr = r; cols = map; }
+    }
+    if(hdr < 0) throw new Error("Couldn't find the Num / Amount columns in the invoice file. Is this the QuickBooks invoice or transaction report?");
+    var byNum = {}, order = [];
+    for(r = hdr + 1; r < rows.length; r++){
+      var row = rows[r] || [];
+      var num = atClean(row[cols.num]);
+      if(!num) continue;
+      if(cols.type !== undefined){
+        var ty = atClean(row[cols.type]).toLowerCase();
+        if(ty && ty !== "invoice" && ty !== "credit memo") continue;
+      }
+      var amt = atNum(row[cols.amount]);
+      if(amt === null) continue;
+      var rec = byNum[num];
+      if(!rec){
+        rec = byNum[num] = { invoice_number: num, invoice_date: null, customer: "", description: "", job_number: "", amount: 0, source_file: fileName };
+        order.push(num);
+      }
+      rec.amount += amt;
+      var dt = cols.date !== undefined ? atDate(row[cols.date]) : null;
+      if(dt && (!rec.invoice_date || dt < rec.invoice_date)) rec.invoice_date = dt;
+      if(!rec.customer && cols.name !== undefined) rec.customer = atClean(row[cols.name]);
+      if(!rec.description && cols.desc !== undefined) rec.description = atClean(row[cols.desc]);
+      if(!rec.job_number){
+        var cand = cols.est !== undefined ? atClean(row[cols.est]) : "";
+        var mm = cand.match(AT_JOB_RE);
+        if(!mm && cols.desc !== undefined) mm = atClean(row[cols.desc]).match(AT_JOB_RE);
+        if(mm) rec.job_number = mm[0].toUpperCase();
+        else if(cand) rec.job_number = cand.toUpperCase();
+      }
+    }
+    return order.map(function(n){ var x = byNum[n]; x.amount = atRound(x.amount); return x; });
+  }
+
+  function atSlug(s){ return atKey(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""); }
+
+  async function atReadFiles(){
+    var errEl = document.getElementById("at-err"), warnEl = document.getElementById("at-warn");
+    errEl.style.display = "none"; warnEl.style.display = "none"; warnEl.innerHTML = "";
+    document.getElementById("at-preview").hidden = true;
+    document.getElementById("at-status").textContent = "";
+    atParsed = null;
+    try{
+      var invFile = document.getElementById("at-inv-file").files[0];
+      var msFiles = Array.prototype.slice.call(document.getElementById("at-ms-files").files || []);
+      if(!invFile && !msFiles.length) throw new Error("Choose the invoice file, the Material Summary files, or both.");
+      var warns = [], invoices = [], jobs = [], seenJob = {};
+      if(invFile){
+        var buf = await invFile.arrayBuffer();
+        var wb = XLSX.read(buf, { type: "array" });
+        var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: null });
+        invoices = atParseInvoices(rows, invFile.name);
+        if(!invoices.length) throw new Error("No invoices found in that file.");
+      }
+      var bad = [];
+      for(var i = 0; i < msFiles.length; i++){
+        var f = msFiles[i];
+        try{
+          var res = atParseMaterialSummary(await f.text(), f.name);
+          var k = atKey(res.job.job_number);
+          if(seenJob[k] !== undefined){
+            warns.push("Job " + res.job.job_number + " appears in more than one file (" + jobs[seenJob[k]].source_file + " and " + f.name + "). The last one is used.");
+            jobs[seenJob[k]] = res.job;
+          }else{ seenJob[k] = jobs.length; jobs.push(res.job); }
+          if(res.warn) warns.push(f.name + ": " + res.warn + ".");
+        }catch(e){ bad.push(f.name + " — " + ((e && e.message) || "couldn't be read")); }
+      }
+      if(bad.length) warns.push("Skipped " + bad.length + " file(s): " + bad.slice(0, 6).join("; ") + (bad.length > 6 ? "; …" : ""));
+      if(!invoices.length && !jobs.length) throw new Error("Nothing could be read from those files." + (bad.length ? " " + bad[0] : ""));
+      atParsed = { invoices: invoices, jobs: jobs };
+
+      // preview: how will the new rows match what is already saved?
+      var allJobs = {}, allInv = {};
+      atState.jobs.forEach(function(j){ allJobs[atKey(j.job_number)] = j; });
+      jobs.forEach(function(j){ allJobs[atKey(j.job_number)] = j; });
+      atState.invoices.forEach(function(v){ allInv[v.invoice_number] = v; });
+      invoices.forEach(function(v){ allInv[v.invoice_number] = v; });
+      var jobsWithInv = {};
+      Object.keys(allInv).forEach(function(n){ var v = allInv[n]; if(v.job_number) jobsWithInv[atKey(v.job_number)] = true; });
+      var newInvMatched = invoices.filter(function(v){ return v.job_number && allJobs[atKey(v.job_number)]; }).length;
+      var newInvNoJob = invoices.filter(function(v){ return !v.job_number; }).length;
+      var newInvNoRpt = invoices.filter(function(v){ return v.job_number && !allJobs[atKey(v.job_number)]; });
+      var newJobsNoInv = jobs.filter(function(j){ return !jobsWithInv[atKey(j.job_number)]; });
+      var kp = document.getElementById("at-pv-kpis");
+      kp.innerHTML = "";
+      if(invoices.length) kp.appendChild(kpiTile("Invoices read", String(invoices.length), null));
+      if(invoices.length) kp.appendChild(kpiTile("Invoice total", fmtUSD(invoices.reduce(function(a, v){ return a + v.amount; }, 0)), null));
+      if(jobs.length) kp.appendChild(kpiTile("Jobs read", String(jobs.length), null));
+      if(jobs.length) kp.appendChild(kpiTile("Material cost", fmtUSD(jobs.reduce(function(a, j){ return a + j.material_cost; }, 0)), null));
+      var notes = [];
+      if(invoices.length) notes.push(newInvMatched + " of " + invoices.length + " invoices match a job.");
+      if(newInvNoJob) notes.push(newInvNoJob + " invoice(s) have no job number (Estimate No. blank) and won't be matched.");
+      if(newInvNoRpt.length) notes.push(newInvNoRpt.length + " invoice(s) have a job number with no Material Summary yet: " + newInvNoRpt.slice(0, 8).map(function(v){ return v.job_number; }).join(", ") + (newInvNoRpt.length > 8 ? ", …" : "") + ".");
+      if(newJobsNoInv.length) notes.push(newJobsNoInv.length + " job(s) have no invoice yet: " + newJobsNoInv.slice(0, 8).map(function(j){ return j.job_number; }).join(", ") + (newJobsNoInv.length > 8 ? ", …" : "") + ".");
+      document.getElementById("at-pv-notes").innerHTML = notes.map(function(t){ return "<div>" + escHtml(t) + "</div>"; }).join("");
+      if(warns.length){ warnEl.innerHTML = warns.map(function(t){ return "<div>⚠ " + escHtml(t) + "</div>"; }).join(""); warnEl.style.display = "block"; }
+      document.getElementById("at-preview").hidden = false;
+    }catch(err){
+      errEl.textContent = (err && err.message) || "Couldn't read those files.";
+      errEl.style.display = "block";
+    }
+  }
+
+  async function atSave(){
+    var statusEl = document.getElementById("at-status"), btn = document.getElementById("at-save-btn");
+    if(!atParsed) return;
+    btn.disabled = true; btn.textContent = "Saving…"; statusEl.textContent = ""; statusEl.style.color = "var(--text-secondary)";
+    try{
+      var invRows = atParsed.invoices.map(function(v){
+        return { id: "ati-" + atSlug(v.invoice_number), invoice_number: v.invoice_number, invoice_date: v.invoice_date,
+                 customer: v.customer || null, description: v.description || null, job_number: v.job_number || null,
+                 amount: v.amount, source_file: v.source_file };
+      });
+      var jobRows = atParsed.jobs.map(function(j){
+        return { id: "atj-" + atSlug(j.job_number), job_number: j.job_number, job_name: j.job_name || null, customer: j.customer || null,
+                 category: j.category || null, lumber_cost: j.lumber_cost, plate_cost: j.plate_cost, material_cost: j.material_cost,
+                 selling_price: j.selling_price, report_date: j.report_date, source_file: j.source_file, lines: j.lines };
+      });
+      async function put(table, rows){
+        for(var i = 0; i < rows.length; i += 150){
+          var r = await sb.from(table).upsert(rows.slice(i, i + 150), { onConflict: "id" });
+          if(r.error) throw r.error;
+        }
+      }
+      if(invRows.length) await put("at_invoices", invRows);
+      if(jobRows.length) await put("at_jobs", jobRows);
+      var parts = [];
+      if(invRows.length) parts.push(invRows.length + " invoice(s)");
+      if(jobRows.length) parts.push(jobRows.length + " job(s)");
+      statusEl.textContent = "Saved " + parts.join(" and ") + ".";
+      statusEl.style.color = "var(--good)";
+      atParsed = null;
+      document.getElementById("at-inv-file").value = "";
+      document.getElementById("at-ms-files").value = "";
+      await atLoad(true);
+    }catch(err){
+      var msg = (err && err.message) || "unknown error";
+      if(/relation .* does not exist|schema cache/i.test(msg)) msg += " — run all_truss_jobs.sql in Supabase first.";
+      statusEl.textContent = "Couldn't save: " + msg;
+      statusEl.style.color = "var(--critical)";
+    }finally{
+      btn.disabled = false; btn.textContent = "Save";
+    }
+  }
+
+  async function atFetchAll(table, orderCol){
+    var out = [], from = 0, size = 1000;
+    for(;;){
+      var r = await sb.from(table).select("*").order(orderCol, { ascending: true }).range(from, from + size - 1);
+      if(r.error) throw r.error;
+      out = out.concat(r.data || []);
+      if(!r.data || r.data.length < size) break;
+      from += size;
+    }
+    return out;
+  }
+  async function atLoad(force){
+    if(atState.loading || (atState.loaded && !force)){ if(atState.loaded) atRender(); return; }
+    atState.loading = true;
+    var ld = document.getElementById("at-loading"), le = document.getElementById("at-load-err");
+    ld.hidden = false; le.style.display = "none";
+    try{
+      var res = await Promise.all([atFetchAll("at_jobs", "job_number"), atFetchAll("at_invoices", "invoice_number")]);
+      atState.jobs = res[0]; atState.invoices = res[1]; atState.loaded = true;
+      atState.jobs.forEach(function(j){ j.material_cost = Number(j.material_cost) || 0; j.lumber_cost = Number(j.lumber_cost) || 0; j.plate_cost = Number(j.plate_cost) || 0; });
+      atState.invoices.forEach(function(v){ v.amount = Number(v.amount) || 0; });
+    }catch(err){
+      var msg = (err && err.message) || "unknown error";
+      le.textContent = /relation .* does not exist|schema cache|Could not find the table/i.test(msg)
+        ? "The All Truss job tables don't exist yet. Run all_truss_jobs.sql in the Supabase SQL editor, then refresh."
+        : "Couldn't load All Truss jobs: " + msg;
+      le.style.display = "block";
+    }finally{
+      atState.loading = false; ld.hidden = true;
+    }
+    atRender();
+  }
+
+  function atCompute(){
+    var jobByKey = {}, invByJob = {}, noJob = [], noRpt = [];
+    atState.jobs.forEach(function(j){ jobByKey[atKey(j.job_number)] = j; });
+    atState.invoices.forEach(function(v){
+      if(!v.job_number){ noJob.push(v); return; }
+      var k = atKey(v.job_number);
+      if(!jobByKey[k]){ noRpt.push(v); return; }
+      (invByJob[k] = invByJob[k] || []).push(v);
+    });
+    var rows = [], noInv = [];
+    atState.jobs.forEach(function(j){
+      var k = atKey(j.job_number), invs = invByJob[k];
+      if(!invs){ noInv.push(j); return; }
+      var inv = 0, date = null;
+      invs.forEach(function(v){ inv += v.amount; if(v.invoice_date && (!date || v.invoice_date < date)) date = v.invoice_date; });
+      inv = atRound(inv);
+      rows.push({ job: j, invoices: invs, invoiced: inv, cost: j.material_cost, profit: atRound(inv - j.material_cost),
+                  margin: inv ? (inv - j.material_cost) / inv : null, date: date, month: date ? date.slice(0, 7) : "" });
+    });
+    return { rows: rows, noJob: noJob, noRpt: noRpt, noInv: noInv };
+  }
+  function atMonthLabel(m){
+    if(!m) return "No date";
+    var names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return names[parseInt(m.slice(5, 7), 10) - 1] + " " + m.slice(0, 4);
+  }
+  function atPct(x){ return x === null || !isFinite(x) ? "—" : (x * 100).toFixed(1) + "%"; }
+  function atTotals(rows){
+    var t = { jobs: rows.length, invoiced: 0, cost: 0, profit: 0 };
+    rows.forEach(function(r){ t.invoiced += r.invoiced; t.cost += r.cost; });
+    t.invoiced = atRound(t.invoiced); t.cost = atRound(t.cost); t.profit = atRound(t.invoiced - t.cost);
+    t.margin = t.invoiced ? t.profit / t.invoiced : null;
+    return t;
+  }
+
+  function atRender(){
+    var data = atCompute();
+    var monthSel = document.getElementById("at-month");
+    var prev = monthSel.value || "all";
+    var months = {};
+    data.rows.forEach(function(r){ months[r.month] = true; });
+    var ml = Object.keys(months).sort().reverse();
+    monthSel.innerHTML = '<option value="all">All months</option>' + ml.map(function(m){ return '<option value="' + escHtml(m) + '">' + escHtml(atMonthLabel(m)) + '</option>'; }).join("");
+    monthSel.value = (prev === "all" || months[prev]) ? prev : "all";
+    var sel = monthSel.value;
+    var scoped = sel === "all" ? data.rows : data.rows.filter(function(r){ return r.month === sel; });
+
+    // KPIs
+    var t = atTotals(scoped), kp = document.getElementById("at-kpis");
+    kp.innerHTML = "";
+    kp.appendChild(kpiTile("Jobs invoiced", String(t.jobs), null));
+    kp.appendChild(kpiTile("Invoiced", fmtUSD(t.invoiced), null));
+    kp.appendChild(kpiTile("Material cost", fmtUSD(t.cost), null));
+    kp.appendChild(kpiTile("Profit", fmtUSD(t.profit), null));
+    kp.appendChild(kpiTile("Margin", atPct(t.margin), null));
+
+    // history
+    var byMonth = {};
+    data.rows.forEach(function(r){ (byMonth[r.month] = byMonth[r.month] || []).push(r); });
+    var mkeys = Object.keys(byMonth).sort().reverse();
+    var tb = document.querySelector("#at-hist-table tbody");
+    tb.innerHTML = "";
+    if(!mkeys.length){ tb.innerHTML = '<tr><td colspan="6" style="color:var(--text-secondary);">No matched jobs yet.</td></tr>'; }
+    var series = [];
+    mkeys.forEach(function(m){
+      var mt = atTotals(byMonth[m]);
+      series.push({ m: m, t: mt });
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + escHtml(atMonthLabel(m)) + '</td><td class="num-col num">' + mt.jobs + '</td><td class="num-col num">' + fmtUSD(mt.invoiced) +
+        '</td><td class="num-col num">' + fmtUSD(mt.cost) + '</td><td class="num-col num" style="color:' + (mt.profit < 0 ? "var(--critical)" : "inherit") + ';">' + fmtUSD(mt.profit) +
+        '</td><td class="num-col num">' + atPct(mt.margin) + "</td>";
+      tb.appendChild(tr);
+    });
+    atChart(series.slice(0, 12).reverse());
+
+    // jobs table
+    var q = atKey(document.getElementById("at-search").value);
+    var qraw = document.getElementById("at-search").value.trim().toLowerCase();
+    var list = scoped.filter(function(r){
+      if(!qraw) return true;
+      return (r.job.job_number + " " + (r.job.job_name || "") + " " + (r.job.customer || "") + " " + r.invoices.map(function(v){ return v.invoice_number + " " + (v.customer || ""); }).join(" ")).toLowerCase().indexOf(qraw) !== -1 ||
+             (q && atKey(r.job.job_number).indexOf(q) !== -1);
+    });
+    var sort = document.getElementById("at-sort").value;
+    list.sort(function(a, b){
+      if(sort === "profit_asc") return a.profit - b.profit;
+      if(sort === "profit_desc") return b.profit - a.profit;
+      if(sort === "margin_asc") return (a.margin === null ? 9 : a.margin) - (b.margin === null ? 9 : b.margin);
+      return (b.date || "").localeCompare(a.date || "") || atKey(b.job.job_number).localeCompare(atKey(a.job.job_number));
+    });
+    document.getElementById("at-jobs-sub").textContent = list.length + " job" + (list.length === 1 ? "" : "s") + (sel === "all" ? "" : " invoiced in " + atMonthLabel(sel)) + ". Click a job for details.";
+    var jb = document.querySelector("#at-jobs-table tbody");
+    jb.innerHTML = "";
+    if(!list.length) jb.innerHTML = '<tr><td colspan="7" style="color:var(--text-secondary);">' + (atState.jobs.length || atState.invoices.length ? "No jobs match." : "Nothing here yet. Upload invoices and Material Summary files above.") + "</td></tr>";
+    list.slice(0, 500).forEach(function(r){
+      var tr = document.createElement("tr");
+      tr.style.cursor = "pointer";
+      tr.innerHTML = "<td>" + escHtml(r.job.job_number) + "</td><td>" + escHtml(r.job.job_name || "") + (r.job.customer ? '<div style="color:var(--text-secondary);font-size:12px;">' + escHtml(r.job.customer) + "</div>" : "") +
+        "</td><td>" + escHtml(r.date || "—") + '</td><td class="num-col num">' + fmtUSD(r.invoiced) + '</td><td class="num-col num">' + fmtUSD(r.cost) +
+        '</td><td class="num-col num" style="color:' + (r.profit < 0 ? "var(--critical)" : "inherit") + ';">' + fmtUSD(r.profit) + '</td><td class="num-col num">' + atPct(r.margin) + "</td>";
+      var dtr = null;
+      tr.addEventListener("click", function(){
+        if(dtr){ dtr.remove(); dtr = null; return; }
+        dtr = document.createElement("tr");
+        var td = document.createElement("td"); td.colSpan = 7; td.style.background = "var(--surface-2, transparent)";
+        var h = '<div style="font-size:13px;line-height:1.6;">';
+        h += "<div><strong>Invoices:</strong> " + r.invoices.map(function(v){ return "#" + escHtml(v.invoice_number) + " (" + escHtml(v.invoice_date || "no date") + ") " + fmtUSD(v.amount); }).join(", ") + "</div>";
+        h += "<div><strong>Material:</strong> lumber " + fmtUSD(r.job.lumber_cost) + ", plates " + fmtUSD(r.job.plate_cost) + (r.job.selling_price != null ? " &middot; software selling price " + fmtUSD(Number(r.job.selling_price)) : "") + (r.job.category ? " &middot; " + escHtml(r.job.category) : "") + "</div>";
+        var ls = (r.job.lines || []).slice().sort(function(a, b){ return b.total - a.total; }).slice(0, 8);
+        if(ls.length) h += "<div><strong>Biggest cost lines:</strong> " + ls.map(function(l){ return escHtml(l.name + (l.len ? " " + l.len : "")) + " (" + l.qty + ") " + fmtUSD(l.total); }).join("; ") + "</div>";
+        h += "</div>";
+        td.innerHTML = h; dtr.appendChild(td);
+        tr.parentNode.insertBefore(dtr, tr.nextSibling);
+      });
+      jb.appendChild(tr);
+    });
+    if(list.length > 500){ var more = document.createElement("tr"); more.innerHTML = '<td colspan="7" style="color:var(--text-secondary);">Showing the first 500 of ' + list.length + ". Use search or the month filter to narrow it.</td>"; jb.appendChild(more); }
+
+    // needs attention
+    var at = document.getElementById("at-attn"), parts = [];
+    function tbl(title, hint, head, rows){
+      return '<div style="margin-bottom:16px;"><div style="font-weight:600;">' + escHtml(title) + " (" + rows.length + ')</div><div class="panel-sub" style="margin:2px 0 6px;">' + escHtml(hint) + '</div><div class="table-scroll"><table class="data-table"><thead><tr>' +
+        head.map(function(h){ return "<th" + (h.num ? ' class="num-col"' : "") + ">" + escHtml(h.t) + "</th>"; }).join("") + "</tr></thead><tbody>" + rows.slice(0, 100).map(function(r){ return "<tr>" + r + "</tr>"; }).join("") +
+        (rows.length > 100 ? '<tr><td colspan="' + head.length + '" style="color:var(--text-secondary);">Showing the first 100.</td></tr>' : "") + "</tbody></table></div></div>";
+    }
+    if(data.noRpt.length) parts.push(tbl("Invoices with no Material Summary", "A job number is on the invoice but no Material Summary has been uploaded for it.", [{t:"Invoice #"},{t:"Job #"},{t:"Customer"},{t:"Date"},{t:"Amount",num:true}],
+      data.noRpt.map(function(v){ return "<td>" + escHtml(v.invoice_number) + "</td><td>" + escHtml(v.job_number) + "</td><td>" + escHtml(v.customer || "") + "</td><td>" + escHtml(v.invoice_date || "") + '</td><td class="num-col num">' + fmtUSD(v.amount) + "</td>"; })));
+    if(data.noInv.length) parts.push(tbl("Jobs with no invoice", "A Material Summary was uploaded but no invoice carries that job number.", [{t:"Job #"},{t:"Job / customer"},{t:"Report date"},{t:"Material $",num:true}],
+      data.noInv.map(function(j){ return "<td>" + escHtml(j.job_number) + "</td><td>" + escHtml((j.job_name || "") + (j.customer ? " — " + j.customer : "")) + "</td><td>" + escHtml(j.report_date || "") + '</td><td class="num-col num">' + fmtUSD(j.material_cost) + "</td>"; })));
+    if(data.noJob.length) parts.push(tbl("Invoices with no job number", "The Estimate No. is blank on these invoices, so they can't be matched automatically.", [{t:"Invoice #"},{t:"Customer"},{t:"Date"},{t:"Amount",num:true}],
+      data.noJob.map(function(v){ return "<td>" + escHtml(v.invoice_number) + "</td><td>" + escHtml(v.customer || "") + "</td><td>" + escHtml(v.invoice_date || "") + '</td><td class="num-col num">' + fmtUSD(v.amount) + "</td>"; })));
+    at.innerHTML = parts.length ? parts.join("") : '<div class="panel-sub">Everything uploaded so far is matched.</div>';
+  }
+
+  function atChart(series){
+    var box = document.getElementById("at-chart");
+    if(!series.length){ box.innerHTML = ""; return; }
+    var W = 640, H = 200, padL = 8, padB = 24, padT = 14, n = series.length;
+    var maxV = 0, minV = 0;
+    series.forEach(function(s){ maxV = Math.max(maxV, s.t.profit); minV = Math.min(minV, s.t.profit); });
+    if(maxV === 0 && minV === 0) maxV = 1;
+    var range = maxV - minV, plotH = H - padT - padB, zeroY = padT + plotH * (maxV / range);
+    var bw = Math.min(56, (W - padL * 2) / n * 0.62), step = (W - padL * 2) / n;
+    var svg = '<svg viewBox="0 0 ' + W + " " + H + '" width="100%" role="img" aria-label="Profit by month" style="max-width:720px;display:block;">';
+    svg += '<line x1="' + padL + '" x2="' + (W - padL) + '" y1="' + zeroY + '" y2="' + zeroY + '" stroke="var(--border, #ccc)" stroke-width="1"/>';
+    series.forEach(function(s, i){
+      var v = s.t.profit, h = Math.abs(v) / range * plotH, x = padL + step * i + (step - bw) / 2;
+      var y = v >= 0 ? zeroY - h : zeroY;
+      svg += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(h, 1).toFixed(1) + '" rx="2" fill="' + (v < 0 ? "var(--critical)" : "var(--series-1)") + '"><title>' + escHtml(atMonthLabel(s.m)) + ": " + escHtml(fmtUSD(v)) + "</title></rect>";
+      var ly = v >= 0 ? y - 4 : y + h + 12;
+      svg += '<text x="' + (x + bw / 2).toFixed(1) + '" y="' + ly.toFixed(1) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">' + escHtml(fmtUSD(v)) + "</text>";
+      svg += '<text x="' + (x + bw / 2).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">' + escHtml(atMonthLabel(s.m).replace(" 20", " ’")) + "</text>";
+    });
+    box.innerHTML = svg + "</svg>";
+  }
+
+  document.getElementById("at-read-btn").addEventListener("click", atReadFiles);
+  document.getElementById("at-save-btn").addEventListener("click", atSave);
+  document.getElementById("at-month").addEventListener("change", atRender);
+  document.getElementById("at-sort").addEventListener("change", atRender);
+  document.getElementById("at-search").addEventListener("input", atRender);
 
   // ====================================================================
   // One review + one update for the whole weekly page
