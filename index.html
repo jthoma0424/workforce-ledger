@@ -3444,7 +3444,7 @@ window.addEventListener("unhandledrejection", function(e){
     apply();
   }
   function uniqueSorted(arr){
-    return Array.prototype.slice.call(new Set(arr.filter(function(v){ return v !== null && v !== undefined && v !== ""; }))).sort();
+    return Array.from(new Set(arr.filter(function(v){ return v !== null && v !== undefined && v !== ""; }))).sort();
   }
 
   // ---------- add/edit/archive engine (admin only; enforced server-side by RLS) ----------
