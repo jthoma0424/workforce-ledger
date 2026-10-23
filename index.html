@@ -1853,7 +1853,7 @@
       </div>
     </main>
 
-    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v9</footer>
+    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v10</footer>
   </div>
 
 </div>
@@ -6269,7 +6269,7 @@ window.addEventListener("unhandledrejection", function(e){
           sales: sales, wages: round2(row.wages), payroll_taxes: round2(row.payroll_taxes),
           contract_labor: contractLabor, workers_comp: round2(row.workers_comp), commissions: commissions,
           total_payroll_cost: totalPayrollCost, gross_profit: grossProfit,
-          headcount: hcByKey[key] ? Object.keys(hcByKey[key]).length : null
+          headcount: hcByKey[key] ? Object.keys(hcByKey[key]).length : (mrtByKey[key] !== undefined ? 0 : null)   // contract-labor-only location: 0 people (not blank, so Finance still uses this week's payroll headcount)
         });
       });
       payrollRows.sort(function(a,b){ return (a.company+a.staffing_location).localeCompare(b.company+b.staffing_location); });
