@@ -775,6 +775,9 @@
   :root[data-theme="dark"] .fin-view{ --accent-soft:#1E3336; --tbl-group-bg:#1C2A42; --tbl-group-ink:#B9C7EA; --tbl-total-bg:#1B222C; --tbl-total-border:#5FA3A4; }
   /* neutralize the site's own generic classes where the ported view reuses the same names */
   .fin-view .kpi-grid{ margin-bottom:0; }
+  #m-kpi-grid.kpi-grid{ grid-template-columns:1fr 1fr; }
+  #m-kpi-grid .kpi{ min-width:0; padding:12px 12px 10px; }
+  #m-kpi-grid .kpi-value{ font-size:19px; overflow-wrap:anywhere; }
   .fin-view .kpi-grid-top{ border-radius:10px 10px 0 0; }
   .fin-view #hcTrendCard{ max-width:420px; }
 </style>
@@ -1853,7 +1856,7 @@
       </div>
     </main>
 
-    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v10</footer>
+    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v11</footer>
   </div>
 
 </div>
@@ -4070,21 +4073,95 @@ window.addEventListener("unhandledrejection", function(e){
 
     var grid = document.getElementById("m-kpi-grid");
     grid.innerHTML = "";
-    grid.appendChild(kpiTile("Cash", fmtUSD(latest.cash), deltaEl(latest.cash, prev?prev.cash:null, false)));
-    grid.appendChild(kpiTile("Accounts receivable", fmtUSD(latest.ar), deltaEl(latest.ar, prev?prev.ar:null, false)));
-    grid.appendChild(kpiTile("Accounts payable", fmtUSD(latest.ap), deltaEl(latest.ap, prev?prev.ap:null, true)));
-    grid.appendChild(kpiTile("Weekly revenue", fmtUSD(latestRevenue), deltaEl(latestRevenue, prevRevenue, false)));
-    grid.appendChild(kpiTile("Weekly COGS", fmtUSD(latestCogs), deltaEl(latestCogs, prevCogs, true)));
+    var latestGp = latestRevenue - latestCogs, prevGp = prev ? (prevRevenue - prevCogs) : null;
+    var latestHc = (latest.headcount && latest.headcount.total != null) ? latest.headcount.total : null;
+    var prevHc = (prev && prev.headcount && prev.headcount.total != null) ? prev.headcount.total : null;
+    // two columns, filled row by row: left = sales, gross profit, cash, accounts payable; right = COGS, gross margin, accounts receivable, headcount
+    grid.appendChild(kpiTile("Weekly sales", mFmt0(latestRevenue), deltaEl(latestRevenue, prevRevenue, false)));
+    grid.appendChild(kpiTile("Weekly COGS", mFmt0(latestCogs), deltaEl(latestCogs, prevCogs, true)));
+    grid.appendChild(kpiTile("Gross profit", mFmt0(latestGp), deltaEl(latestGp, prevGp, false)));
     grid.appendChild(kpiTile("Gross margin", fmtPct(marginPct), deltaEl(marginPct, prevMarginPct, false)));
-    grid.appendChild(kpiTile("Total headcount", (latest.headcount && latest.headcount.total != null) ? latest.headcount.total.toLocaleString("en-US") : "—", null));
+    grid.appendChild(kpiTile("Cash", mFmt0(latest.cash), deltaEl(latest.cash, prev?prev.cash:null, false)));
+    grid.appendChild(kpiTile("Accounts receivable", mFmt0(latest.ar), deltaEl(latest.ar, prev?prev.ar:null, false)));
+    grid.appendChild(kpiTile("Accounts payable", mFmt0(latest.ap), deltaEl(latest.ap, prev?prev.ap:null, true)));
+    grid.appendChild(kpiTile("Headcount", latestHc !== null ? latestHc.toLocaleString("en-US") : "\u2014", deltaEl(latestHc, prevHc, false)));
 
     var plWeeks = financeRows.filter(function(s){ return s.company_pl; }).slice(-4);
     var plCols = plWeeks.map(function(s){ return s.date; });
-    renderWeekTable("m-wk-pl-table", plCols, "Metric", plWeekRows(plWeeks), { fmt:fmtUSD });
+    renderWeekTable("m-wk-pl-table", plCols, "Metric", plWeekRows(plWeeks), { fmt:mFmt0 });
 
     var hcWeeks = financeRows.filter(function(s){ return s.headcount; }).slice(-4);
-    var hcCols = hcWeeks.map(function(s){ return s.date; });
-    renderWeekTable("m-wk-cust-table", hcCols, "Customer", custWeekRows(hcWeeks), { fmt:countFmt, totalCol:true, totalRow:true });
+    renderMobCust(hcWeeks);
+    if(!mobLocByCode) loadMobLocMeta().then(function(){ renderMobCust(hcWeeks); });
+  }
+
+  // whole dollars, used on the mobile summary only
+  function mFmt0(n){
+    if(n === null || n === undefined || isNaN(n)) return "\u2014";
+    var r = Math.round(n);
+    return (r < 0 ? "-" : "") + "$" + Math.abs(r).toLocaleString("en-US");
+  }
+
+  // office code -> { customer bucket, site name } from the staffing locations list, so a parent customer can show its sites underneath
+  var mobLocByCode = null;
+  async function loadMobLocMeta(){
+    var map = {};
+    try{
+      var r = await sb.from("payroll_locations").select("customer,staffing_location,office_code");
+      (r.data || []).forEach(function(l){
+        if(!l.office_code) return;
+        var code = String(l.office_code).split(":").pop().trim();
+        if(code && !map[code]) map[code] = { customer: l.customer, name: l.staffing_location };
+      });
+    }catch(e){}
+    mobLocByCode = map;
+  }
+  function renderMobCust(hcWeeks){
+    var el = document.getElementById("m-wk-cust-table");
+    if(!el) return;
+    var cols = hcWeeks.map(function(s){ return s.date; });
+    var parents = custWeekRows(hcWeeks);
+    if(!cols.length || !parents.length){
+      el.innerHTML = '<tbody><tr><td class="empty-cell">No weekly updates on file yet.</td></tr></tbody>';
+      return;
+    }
+    var meta = mobLocByCode || {};
+    function offCount(s, code){
+      var o = ((s.headcount && s.headcount.offices) || []).filter(function(x){ return String(x.code) === code; })[0];
+      return o ? (o.count || 0) : 0;
+    }
+    function nn(x){ return String(x || "").toLowerCase().replace(/[^a-z0-9]+/g, ""); }
+    var allCodes = {};
+    hcWeeks.forEach(function(s){ ((s.headcount && s.headcount.offices) || []).forEach(function(o){ allCodes[String(o.code)] = 1; }); });
+    function fmt(v){ return (typeof v === "number") ? v.toLocaleString("en-US") : "\u2014"; }
+    var thead = '<thead><tr><th>Customer</th>' + cols.map(function(c){ return '<th>' + fmtDate(c) + '</th>'; }).join("") + '<th>Total</th></tr></thead>';
+    var colSums = cols.map(function(){ return 0; });
+    var body = "";
+    parents.forEach(function(r){
+      r.values.forEach(function(v, i){ colSums[i] += v; });
+      var total = r.values.reduce(function(a, b){ return a + b; }, 0);
+      var kids = Object.keys(allCodes).filter(function(code){ return meta[code] && nn(meta[code].customer) === nn(r.label); })
+        .map(function(code){ return { label: meta[code].name, values: hcWeeks.map(function(s){ return offCount(s, code); }) }; })
+        .filter(function(k){ return k.values.some(function(x){ return x > 0; }); })
+        .sort(function(a, b){ return b.values[b.values.length-1] - a.values[a.values.length-1]; });
+      var hasKids = kids.length >= 2;
+      body += '<tr' + (hasKids ? ' class="group-row"' : '') + '><td class="row-label"' + (hasKids ? ' style="font-weight:700;"' : '') + '>' + escHtml(r.label) + '</td>' +
+        r.values.map(function(v){ return '<td' + (hasKids ? ' style="font-weight:700;"' : '') + '>' + fmt(v) + '</td>'; }).join("") +
+        '<td' + (hasKids ? ' style="font-weight:700;"' : '') + '>' + total.toLocaleString("en-US") + '</td></tr>';
+      if(hasKids){
+        var rest = r.values.map(function(v, i){ return v - kids.reduce(function(a, k){ return a + k.values[i]; }, 0); });
+        if(rest[rest.length-1] > 0) kids.push({ label: "Other (no site on file)", values: rest.map(function(x){ return Math.max(0, x); }) });
+        kids.forEach(function(k){
+          var kt = k.values.reduce(function(a, b){ return a + b; }, 0);
+          body += '<tr><td class="row-label" style="padding-left:24px;font-weight:400;color:var(--text-secondary);">' + escHtml(k.label) + '</td>' +
+            k.values.map(function(v){ return '<td style="color:var(--text-secondary);">' + fmt(v) + '</td>'; }).join("") +
+            '<td style="color:var(--text-secondary);">' + kt.toLocaleString("en-US") + '</td></tr>';
+        });
+      }
+    });
+    var grand = colSums.reduce(function(a, b){ return a + b; }, 0);
+    body += '<tr class="total-row"><td class="row-label">Total</td>' + colSums.map(function(x){ return '<td>' + x.toLocaleString("en-US") + '</td>'; }).join("") + '<td>' + grand.toLocaleString("en-US") + '</td></tr>';
+    el.innerHTML = thead + '<tbody>' + body + '</tbody>';
   }
 
   // ---------- home tab: bank balances ----------
