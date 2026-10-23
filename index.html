@@ -1631,6 +1631,18 @@
                 </div>
               </div>
 
+              <div class="panel-sub" style="margin-top:16px;"><strong>Typed-in amounts for this week</strong> &mdash; these count in cost of sales. The FSG amounts are not added to the FSG commission bill. They save with the week when you click Update everything. Leave a box empty for none.</div>
+              <div class="upl-row">
+                <div class="crud-field"><label for="upl-man-fsg-km">FSG amount &mdash; 84 Kings Mountain ($)</label><input type="number" id="upl-man-fsg-km" step="0.01" min="0"></div>
+                <div class="crud-field"><label for="upl-man-fsg-st">FSG amount &mdash; 84 Statesville ($)</label><input type="number" id="upl-man-fsg-st" step="0.01" min="0"></div>
+                <div class="crud-field"><label for="upl-man-fsg-cc">FSG amount &mdash; 84 Coal Center ($)</label><input type="number" id="upl-man-fsg-cc" step="0.01" min="0"></div>
+              </div>
+              <div class="upl-row">
+                <div class="crud-field"><label for="upl-man-nov">Novotny commission ($5 per active employee)</label><input type="number" id="upl-man-nov" step="0.01" min="0"><div class="panel-sub" id="upl-man-nov-hint" style="margin-top:4px;"></div></div>
+                <div class="crud-field"><label for="upl-man-gp-km">Greg Presley &mdash; 84 Kings Mountain ($)</label><input type="number" id="upl-man-gp-km" step="0.01" min="0"></div>
+                <div class="crud-field"><label for="upl-man-gp-st">Greg Presley &mdash; 84 Statesville ($)</label><input type="number" id="upl-man-gp-st" step="0.01" min="0"></div>
+              </div>
+
               <div class="login-msg err" id="upl-err" style="display:none; margin-top:12px;"></div>
               <div id="upl-warnings" style="display:none; margin-top:12px;"></div>
             </section>
@@ -1870,7 +1882,7 @@
       </div>
     </main>
 
-    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v12</footer>
+    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v13</footer>
   </div>
 
 </div>
@@ -4449,9 +4461,15 @@ window.addEventListener("unhandledrejection", function(e){
     if(!lr.error){
       (lr.data || []).forEach(function(l){ if(l.office_code) codes[String(l.staffing_location).toLowerCase()] = String(l.office_code); });
     }
-    return { rows: all, codes: codes };
+    // FSG commission rows: the recruiting & management fee (no "owed to S4L" amount) is part of cost of sales
+    var fsg = [];
+    try{
+      var fr = await sb.from("fsg_commission").select("check_date,company,staffing_location,state,fsg_commission,owed_to_s4l,is_deleted");
+      if(!fr.error) fsg = fr.data || [];
+    }catch(e){}
+    return { rows: all, codes: codes, fsg: fsg };
   }
-  function buildPayrollWeeks(rows, codes){
+  function buildPayrollWeeks(rows, codes, fsg){
     var weeks = {};
     rows.forEach(function(p){
       // Not part of the staffing P&L: the All Truss LLC entity and the Workforce Strategies HQ row.
@@ -4477,6 +4495,20 @@ window.addEventListener("unhandledrejection", function(e){
         w.stHc[st] = (w.stHc[st] || 0) + h;
       }
     });
+    (fsg || []).forEach(function(f){
+      if(f.is_deleted || Number(f.owed_to_s4l) || f.company === "All Truss LLC") return;
+      var amt = Number(f.fsg_commission) || 0;
+      if(!amt) return;
+      var w = weeks[isoAddDays(f.check_date, -6)];
+      if(!w) return;
+      var code = codes[String(f.staffing_location || "").toLowerCase()] || f.staffing_location;
+      var st = f.state || "";
+      w.cogs += amt;
+      var o = w.offices[code] = w.offices[code] || { code: code, state: st, sales: 0, cogs: 0 };
+      o.cogs += amt;
+      var s2 = w.states[st] = w.states[st] || { state: st, sales: 0, cogs: 0 };
+      s2.cogs += amt;
+    });
     return weeks;
   }
   function payrollWeekToFin(w){
@@ -4497,7 +4529,7 @@ window.addEventListener("unhandledrejection", function(e){
     return out;
   }
   function overlayPayroll(snapRows, pay){
-    var weeks = buildPayrollWeeks(pay.rows, pay.codes);
+    var weeks = buildPayrollWeeks(pay.rows, pay.codes, pay.fsg);
     var dates = Object.keys(weeks).sort();
     finSourceInfo = { payrollWeeks: dates.length, used: dates.length >= FIN_PAYROLL_MIN_WEEKS, dates: [], error: null };
     if(!finSourceInfo.used) return snapRows;
@@ -4572,7 +4604,7 @@ window.addEventListener("unhandledrejection", function(e){
     }
     var i = finSourceInfo;
     if(i.used){
-      el.textContent = "Sales, cost of sales, margin and headcount come from the Payroll tab for the " + i.dates.length + " week(s) with payroll data (" +
+      el.textContent = "Sales, cost of sales (payroll cost, commissions and recruiting & management fees), margin and headcount come from the Payroll tab for the " + i.dates.length + " week(s) with payroll data (" +
         fmtDate(i.dates[0]) + " – " + fmtDate(i.dates[i.dates.length-1]) + "). Cash, AR and AP appear only for weeks that have a balance-sheet snapshot. " +
         "A payroll week uploaded before worker counts were recorded shows its snapshot headcount, if there is one.";
     }else{
@@ -5715,6 +5747,7 @@ window.addEventListener("unhandledrejection", function(e){
     if(!one || !one.office_code) return "";
     return (one.state || state || "") + ":" + one.office_code;
   }
+  var FSG_TYPED_ONLY = ["84 Kings Mountain", "84 Statesville", "84 Coal Center"];
   function computeBillLines(week){
     var wcLines = [];
     payrollDataCache.forEach(function(p){
@@ -5738,6 +5771,9 @@ window.addEventListener("unhandledrejection", function(e){
       // (customer invoice, with the location's class), so they are NOT on this bill. The bill is the
       // FSG commission for the locations that have no Owed to S4L amount.
       if(Number(f.owed_to_s4l)) return;
+      // The typed-in FSG amounts for Kings Mountain, Statesville and Coal Center are entered in QuickBooks separately,
+      // so they count in cost of sales but are NOT on this bill.
+      if(FSG_TYPED_ONLY.indexOf(f.staffing_location) !== -1) return;
       var amt = Number(f.fsg_commission);
       if(!amt) return;
       fsgLines.push({
@@ -5920,6 +5956,26 @@ window.addEventListener("unhandledrejection", function(e){
   }
   function round2(n){ return Math.round((Number(n)||0) * 100) / 100; }
 
+  function uplTypedNum(id){ var el = document.getElementById(id); var v = el ? parseFloat(el.value) : NaN; return (isNaN(v) || v < 0) ? 0 : v; }
+  // fill the typed-in boxes with what is already saved for the chosen week, so re-running Review never wipes them
+  async function uplLoadTyped(){
+    var wk = (document.getElementById("upl-week-input") || {}).value;
+    function set(id, v){ var el = document.getElementById(id); if(el) el.value = v ? String(Math.round(v * 100) / 100) : ""; }
+    ["upl-man-fsg-km","upl-man-fsg-st","upl-man-fsg-cc","upl-man-nov","upl-man-gp-km","upl-man-gp-st"].forEach(function(id){ set(id, 0); });
+    if(!wk) return;
+    try{
+      var f = await sb.from("fsg_commission").select("staffing_location,fsg_commission").eq("check_date", wk);
+      (f.data || []).forEach(function(r){
+        var m = { "84 Kings Mountain": "upl-man-fsg-km", "84 Statesville": "upl-man-fsg-st", "84 Coal Center": "upl-man-fsg-cc" }[r.staffing_location];
+        if(m) set(m, Number(r.fsg_commission) || 0);
+      });
+      var p = await sb.from("payroll_data").select("staffing_location,commissions").eq("check_date", wk);
+      (p.data || []).forEach(function(r){
+        var m = { "Novotny": "upl-man-nov", "84 Kings Mountain": "upl-man-gp-km", "84 Statesville": "upl-man-gp-st" }[r.staffing_location];
+        if(m) set(m, Number(r.commissions) || 0);
+      });
+    }catch(e){}
+  }
   var FSG_DIRECT_BILLED = ["Midland Truss", "Magic Coil Products LLC", "Timber Creek Housing", "Tower Hensley", "Tower Martinez", "Tower Olney"];
   var uplRef = null; // { codeToCompany: {}, locations: [ {company,customer,staffing_location,state} ], wcRateByCode: {} }
   var uplInited = false;
@@ -6359,6 +6415,14 @@ window.addEventListener("unhandledrejection", function(e){
         }
       }
 
+      var existingFsgById = {};
+      try{
+        var exF = await sb.from("fsg_commission").select("id,staffing_location,fsg_commission").eq("check_date", checkDate);
+        (exF.data || []).forEach(function(r){ existingFsgById[r.id] = r; });
+      }catch(e){}
+      // typed-in commissions (on top of the 4ward commission the site works out for Tower)
+      var typedComm = { "Novotny": uplTypedNum("upl-man-nov"), "84 Kings Mountain": uplTypedNum("upl-man-gp-km"), "84 Statesville": uplTypedNum("upl-man-gp-st") };
+      var fourWardByLoc = {};
       // 4) finalize rows: commissions, total_payroll_cost, gross_profit (preview only —
       // gross_profit/gross_profit_pct are recomputed authoritatively by the DB trigger on write)
       var payrollRows = [];
@@ -6366,7 +6430,9 @@ window.addEventListener("unhandledrejection", function(e){
         var row = byKey[key];
         var existing = existingByKey[key];
         var contractLabor = (mrtByKey[key] !== undefined) ? round2(mrtByKey[key]) : (existing ? (Number(existing.contract_labor) || 0) : 0);
-        var commissions = (row.customer === "Tower Extrusions" && row.sales) ? round2(row.sales * 0.02) : 0;
+        var fourWard = (row.customer === "Tower Extrusions" && row.sales) ? round2(row.sales * 0.02) : 0;
+        fourWardByLoc[row.staffing_location] = fourWard;
+        var commissions = round2(fourWard + (typedComm[row.staffing_location] || 0));
         var sales = row.sales !== null ? row.sales : (existing ? existing.sales : null);
         var totalPayrollCost = round2(row.wages + row.payroll_taxes + contractLabor + row.workers_comp + commissions);
         var grossProfit = (sales !== null && sales !== undefined) ? round2(sales - totalPayrollCost) : null;
@@ -6391,7 +6457,7 @@ window.addEventListener("unhandledrejection", function(e){
         var hasSales = (row.sales !== null && row.sales !== undefined && row.gross_profit !== null && row.gross_profit !== undefined);
         // FSG basis (matches the spreadsheet's "FSG Commission" tab): workers comp is marked up 10%
         // before gross profit, so FSG gross profit is lower than the payroll_data gross profit.
-        var fsgGrossProfit = hasSales ? round2(row.sales - (row.wages + row.payroll_taxes + row.contract_labor + row.workers_comp * 1.10 + row.commissions)) : null;
+        var fsgGrossProfit = hasSales ? round2(row.sales - (row.wages + row.payroll_taxes + row.contract_labor + row.workers_comp * 1.10 + (fourWardByLoc[row.staffing_location] || 0))) : null;
         var fsgCommission = hasSales ? round2(fsgGrossProfit * 0.686) : null;
         // "Owed to S4L" only applies to the locations FSG (CACH Labor) bills directly, as on the
         // spreadsheet's FSG Commission tab: wages + taxes + workers comp x1.10 + (FSG gross profit - FSG commission).
@@ -6406,9 +6472,30 @@ window.addEventListener("unhandledrejection", function(e){
           staffing_location: row.staffing_location, company: row.company, state: row.state, check_date: checkDate,
           sales: row.sales, gross_profit: fsgGrossProfit, fsg_commission: fsgCommission, owed_to_s4l: owedToS4l, wages: row.wages,
           payroll_taxes: row.payroll_taxes, contract_labor: row.contract_labor,
-          workers_comp: round2(row.workers_comp * 1.10), four_ward: row.commissions
+          workers_comp: round2(row.workers_comp * 1.10), four_ward: (fourWardByLoc[row.staffing_location] || 0)
         });
       });
+
+      // typed-in FSG amounts (the locations FSG is paid for that the site can't work out): saved as FSG commission rows with nothing owed to S4L,
+      // so they count as recruiting & management fees in cost of sales (they are not on the FSG commission bill; that is entered in QuickBooks separately)
+      [["84 Kings Mountain", "upl-man-fsg-km"], ["84 Statesville", "upl-man-fsg-st"], ["84 Coal Center", "upl-man-fsg-cc"]].forEach(function(m){
+        var amt = round2(uplTypedNum(m[1]));
+        var fid = fsgRowId(checkDate, m[0]);
+        if(!amt && !existingFsgById[fid]) return;
+        var prow = payrollRows.filter(function(r){ return r.staffing_location === m[0]; })[0];
+        var lrow = (ref.locations || []).filter(function(l){ return l.staffing_location === m[0]; })[0];
+        var base = prow || lrow;
+        if(!base){ uplAddWarning(warnings, "FSG amount for " + m[0] + " was typed but that location isn't on the staffing locations list, so it was not saved."); return; }
+        fsgRows.push({
+          id: fid, staffing_location: m[0], company: base.company, state: base.state, check_date: checkDate,
+          sales: prow ? prow.sales : null, gross_profit: null, fsg_commission: amt, owed_to_s4l: null,
+          wages: prow ? prow.wages : 0, payroll_taxes: prow ? prow.payroll_taxes : 0, contract_labor: prow ? prow.contract_labor : 0,
+          workers_comp: 0, four_ward: 0
+        });
+      });
+      var novHc = 0; Object.keys(hcByKey).forEach(function(k){ if(k.split("||")[1] === "Novotny") novHc = Object.keys(hcByKey[k]).length; });
+      var novHint = document.getElementById("upl-man-nov-hint");
+      if(novHint) novHint.textContent = novHc ? ("Novotny has " + novHc + " active employee(s) in this week's WC report: " + novHc + " \u00d7 $5 = $" + (novHc * 5).toFixed(2)) : "";
 
       uplPayrollRows = payrollRows;
       uplFsgRows = fsgRows;
@@ -8353,9 +8440,11 @@ window.addEventListener("unhandledrejection", function(e){
       weekInput.value = d.toISOString().slice(0,10);
     }
     document.getElementById("upl-review-btn").addEventListener("click", uplReviewAll);
+    weekInput.addEventListener("change", uplLoadTyped);
+    uplLoadTyped();
     document.getElementById("upl-all-btn").addEventListener("click", uplUpdateAll);
     document.getElementById("bs-read-btn").addEventListener("click", bsRead);
-    ["upl-week-input","upl-payroll-file","upl-wc-file","upl-tower-files","inv-file","inv-from","plc-up-end"].forEach(function(id){
+    ["upl-week-input","upl-payroll-file","upl-wc-file","upl-tower-files","inv-file","inv-from","plc-up-end","upl-man-fsg-km","upl-man-fsg-st","upl-man-fsg-cc","upl-man-nov","upl-man-gp-km","upl-man-gp-st"].forEach(function(id){
       var el = document.getElementById(id); if(el) el.addEventListener("change", uplInvalidate);
     });
     uplRefreshBar();
