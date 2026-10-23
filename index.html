@@ -1853,7 +1853,7 @@
       </div>
     </main>
 
-    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v8</footer>
+    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v9</footer>
   </div>
 
 </div>
@@ -6183,8 +6183,8 @@ window.addEventListener("unhandledrejection", function(e){
               byKey[ckey] = { company: clLoc.company, customer: clLoc.customer, staffing_location: clLoc.staffing_location, state: clLoc.state, wages: 0, payroll_taxes: 0, workers_comp: 0, sales: null };
             }
             mrtByKey[ckey] = (mrtByKey[ckey] || 0) + inv.amount;
-            if(inv.employees){ var hcm = (hcByKey[ckey] = hcByKey[ckey] || {}); for(var he=0; he<inv.employees; he++) hcm["contract-pdf-" + he] = 1; }
-            uplAddWarning(warnings, clLoc.staffing_location + ": contract labor " + fmtUSD(round2(inv.amount)) + " read from " + inv.fileName + (inv.employees ? " (" + inv.employees + " people)" : "") + ".");
+            // contract labor is cost only: these people are deliberately not added to headcount
+            uplAddWarning(warnings, clLoc.staffing_location + ": contract labor " + fmtUSD(round2(inv.amount)) + " read from " + inv.fileName + (inv.employees ? " (" + inv.employees + " people, not counted in headcount)" : "") + ".");
             continue;
           }
           var loc2 = resolveLocation(ref, inv.staffingLocation, "Dynamic Capacity Staffing LLC");
