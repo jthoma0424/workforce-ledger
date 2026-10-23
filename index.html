@@ -778,6 +778,20 @@
   #m-kpi-grid.kpi-grid{ grid-template-columns:1fr 1fr; }
   #m-kpi-grid .kpi{ min-width:0; padding:12px 12px 10px; }
   #m-kpi-grid .kpi-value{ font-size:19px; overflow-wrap:anywhere; }
+  /* headcount by customer: parent customers stand out (tinted, uppercase, bold), their sites sit underneath in lighter type */
+  #m-wk-cust-table tr.group-row td{ background:#E7EDFB; color:#0f2744; font-weight:700; border-bottom:1px solid var(--border); }
+  #m-wk-cust-table tr.group-row td.row-label{ text-transform:uppercase; font-size:11.5px; letter-spacing:.03em; }
+  #m-wk-cust-table tr.mob-kid{ display:table-row; }
+  #m-wk-cust-table tr.mob-kid td{ background:var(--surface-1); color:var(--text-secondary); font-weight:400; font-size:12.5px; border-bottom:1px solid var(--border); }
+  #m-wk-cust-table tr.mob-kid td.row-label{ padding-left:30px; font-weight:400; color:var(--muted); }
+  #m-wk-cust-table tr.mob-kid.collapsed{ display:none; }
+  #m-wk-cust-table .mob-toggle{ display:inline-block; width:10px; margin-right:6px; font-size:9px; opacity:.75; transition:transform .12s ease; transform:rotate(90deg); cursor:pointer; }
+  #m-wk-cust-table .mob-toggle.closed{ transform:none; }
+  #m-wk-cust-table .mob-toggle.none{ visibility:hidden; }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) #m-wk-cust-table tr.group-row td{ background:#1C2A42; color:#B9C7EA; }
+  }
+  :root[data-theme="dark"] #m-wk-cust-table tr.group-row td{ background:#1C2A42; color:#B9C7EA; }
   .fin-view .kpi-grid-top{ border-radius:10px 10px 0 0; }
   .fin-view #hcTrendCard{ max-width:420px; }
 </style>
@@ -1856,7 +1870,7 @@
       </div>
     </main>
 
-    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v11</footer>
+    <footer class="foot">Live from Supabase &middot; Staffing Dashboard project &middot; build trusscost-v12</footer>
   </div>
 
 </div>
@@ -4104,6 +4118,7 @@ window.addEventListener("unhandledrejection", function(e){
 
   // office code -> { customer bucket, site name } from the staffing locations list, so a parent customer can show its sites underneath
   var mobLocByCode = null;
+  var mobCustOpen = {};
   async function loadMobLocMeta(){
     var map = {};
     try{
@@ -4145,23 +4160,39 @@ window.addEventListener("unhandledrejection", function(e){
         .filter(function(k){ return k.values.some(function(x){ return x > 0; }); })
         .sort(function(a, b){ return b.values[b.values.length-1] - a.values[a.values.length-1]; });
       var hasKids = kids.length >= 2;
-      body += '<tr' + (hasKids ? ' class="group-row"' : '') + '><td class="row-label"' + (hasKids ? ' style="font-weight:700;"' : '') + '>' + escHtml(r.label) + '</td>' +
-        r.values.map(function(v){ return '<td' + (hasKids ? ' style="font-weight:700;"' : '') + '>' + fmt(v) + '</td>'; }).join("") +
-        '<td' + (hasKids ? ' style="font-weight:700;"' : '') + '>' + total.toLocaleString("en-US") + '</td></tr>';
+      var gkey = nn(r.label);
+      var isOpen = mobCustOpen[gkey] !== false;
+      body += '<tr class="group-row"><td class="row-label" data-mob-group="' + escHtml(gkey) + '"><span class="mob-toggle' + (hasKids ? (isOpen ? '' : ' closed') : ' none') + '">\u25B6</span>' + escHtml(r.label) + '</td>' +
+        r.values.map(function(v){ return '<td>' + fmt(v) + '</td>'; }).join("") +
+        '<td>' + total.toLocaleString("en-US") + '</td></tr>';
       if(hasKids){
         var rest = r.values.map(function(v, i){ return v - kids.reduce(function(a, k){ return a + k.values[i]; }, 0); });
         if(rest[rest.length-1] > 0) kids.push({ label: "Other (no site on file)", values: rest.map(function(x){ return Math.max(0, x); }) });
         kids.forEach(function(k){
           var kt = k.values.reduce(function(a, b){ return a + b; }, 0);
-          body += '<tr><td class="row-label" style="padding-left:24px;font-weight:400;color:var(--text-secondary);">' + escHtml(k.label) + '</td>' +
-            k.values.map(function(v){ return '<td style="color:var(--text-secondary);">' + fmt(v) + '</td>'; }).join("") +
-            '<td style="color:var(--text-secondary);">' + kt.toLocaleString("en-US") + '</td></tr>';
+          body += '<tr class="mob-kid' + (isOpen ? '' : ' collapsed') + '" data-mob-kid="' + escHtml(gkey) + '"><td class="row-label">' + escHtml(k.label) + '</td>' +
+            k.values.map(function(v){ return '<td>' + fmt(v) + '</td>'; }).join("") +
+            '<td>' + kt.toLocaleString("en-US") + '</td></tr>';
         });
       }
     });
     var grand = colSums.reduce(function(a, b){ return a + b; }, 0);
     body += '<tr class="total-row"><td class="row-label">Total</td>' + colSums.map(function(x){ return '<td>' + x.toLocaleString("en-US") + '</td>'; }).join("") + '<td>' + grand.toLocaleString("en-US") + '</td></tr>';
     el.innerHTML = thead + '<tbody>' + body + '</tbody>';
+    if(!el._mobBound){
+      el._mobBound = true;
+      el.addEventListener("click", function(ev){
+        var cell = ev.target.closest && ev.target.closest("[data-mob-group]");
+        if(!cell) return;
+        var key = cell.getAttribute("data-mob-group");
+        var tog = cell.querySelector(".mob-toggle");
+        if(!tog || tog.classList.contains("none")) return;
+        var closed = !tog.classList.contains("closed");
+        mobCustOpen[key] = !closed;
+        tog.classList.toggle("closed", closed);
+        Array.prototype.forEach.call(el.querySelectorAll('[data-mob-kid="' + key + '"]'), function(row){ row.classList.toggle("collapsed", closed); });
+      });
+    }
   }
 
   // ---------- home tab: bank balances ----------
