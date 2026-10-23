@@ -1,0 +1,9 @@
+{
+  "crons": [
+    { "path": "/api/cron/daily", "schedule": "0 11 * * *" },
+    { "path": "/api/cron/odds", "schedule": "0 17 * * *" },
+    { "path": "/api/cron/model", "schedule": "15 17 * * *" },
+    { "path": "/api/cron/cbb_daily", "schedule": "0 15 * * *" },
+    { "path": "/api/cron/cbb_lines", "schedule": "0 21 * * *" }
+  ]
+}
