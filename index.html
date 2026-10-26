@@ -4471,12 +4471,22 @@ window.addEventListener("unhandledrejection", function(e){
   }
   function buildPayrollWeeks(rows, codes, fsg){
     var weeks = {};
+    // Frontier (FSG) invoices: the sales in our books are the "owed to S4L" amount entered in QuickBooks, not the
+    // full invoice amount (FSG keeps the rest), so those locations use the owed amount as their sales.
+    var owedBy = {};
+    (fsg || []).forEach(function(f){
+      if(f.is_deleted) return;
+      var ow = Number(f.owed_to_s4l);
+      if(ow) owedBy[f.check_date + "|" + f.staffing_location] = ow;
+    });
     rows.forEach(function(p){
       // Not part of the staffing P&L: the All Truss LLC entity and the Workforce Strategies HQ row.
       if(p.company === "All Truss LLC" || p.staffing_location === "Workforce Strategies") return;
       var wk = isoAddDays(p.check_date, -6);   // check date is the Friday after the week ends
       var w = weeks[wk] = weeks[wk] || { date: wk, sales: 0, cogs: 0, offices: {}, states: {}, hcOk: true, hcTotal: 0, cust: {}, mgr: {}, offHc: {}, stHc: {} };
       var sales = Number(p.sales) || 0, cost = Number(p.total_payroll_cost) || 0;
+      var owedKey = p.check_date + "|" + p.staffing_location;
+      if(owedBy[owedKey] !== undefined) sales = owedBy[owedKey];
       var code = codes[String(p.staffing_location || "").toLowerCase()] || p.staffing_location;
       var st = p.state || "";
       w.sales += sales; w.cogs += cost;
