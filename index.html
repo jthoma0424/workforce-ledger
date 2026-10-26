@@ -1479,7 +1479,11 @@
                     <div class="panel-title">Payroll data</div>
                     <div class="panel-sub" id="payroll-count-sub"></div>
                   </div>
-                  <button type="button" class="btn-sm admin-only" id="payroll-add-btn" hidden>+ Add row</button>
+                  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                    <span class="panel-sub" id="payroll-export-status" style="margin:0;"></span>
+                    <button type="button" class="btn-sm" id="payroll-export-btn">Export to Excel</button>
+                    <button type="button" class="btn-sm admin-only" id="payroll-add-btn" hidden>+ Add row</button>
+                  </div>
                 </div>
                 <div id="payroll-filter-bar"></div>
                 <div class="table-scroll">
@@ -4732,6 +4736,56 @@ window.addEventListener("unhandledrejection", function(e){
     {key:'gross_profit', label:'Gross profit', type:'number', step:'0.01'},
     {key:'notes', label:'Notes', type:'textarea'}
   ];
+  var payrollExportRows = []; // rows currently shown in the Payroll data table (respects the week filter + search)
+  function exportPayrollToExcel(){
+    var statusEl = document.getElementById("payroll-export-status");
+    var rows = payrollExportRows.slice().sort(function(a,b){
+      return String(b.check_date || "").localeCompare(String(a.check_date || "")) ||
+             String(a.company || "").localeCompare(String(b.company || "")) ||
+             String(a.staffing_location || "").localeCompare(String(b.staffing_location || ""));
+    });
+    if(!rows.length){ statusEl.textContent = "Nothing to export for this view."; return; }
+    if(typeof XLSX === "undefined"){ statusEl.textContent = "Excel library didn't load; refresh and try again."; return; }
+    var r2 = function(n){ return Math.round((Number(n) || 0) * 100) / 100; };
+    var opt = function(v){ return (v === null || v === undefined) ? null : r2(v); };
+    var header = ["Company", "Customer", "Location", "State", "Week ending", "Sales", "Wages", "Payroll taxes", "Contract labor", "Workers comp", "Commissions", "Total payroll cost", "Gross profit", "GP %"];
+    var aoa = [header];
+    rows.forEach(function(p){
+      var sales = opt(p.sales), gp = opt(p.gross_profit);
+      aoa.push([
+        p.company || "", p.customer || "", p.staffing_location || "", p.state || "", p.check_date ? fmtDateMDY(p.check_date) : "",
+        sales, opt(p.wages), opt(p.payroll_taxes), opt(p.contract_labor), opt(p.workers_comp), opt(p.commissions), opt(p.total_payroll_cost),
+        gp, (sales && gp !== null) ? gp / sales : null
+      ]);
+    });
+    var ws = XLSX.utils.aoa_to_sheet(aoa);
+    var last = aoa.length;
+    XLSX.utils.sheet_add_aoa(ws, [["Total", "", "", "", "", null, null, null, null, null, null, null, null, null]], { origin: "A" + (last + 1) });
+    var MONEY_COLS = ["F", "G", "H", "I", "J", "K", "L", "M"];
+    MONEY_COLS.forEach(function(col){
+      var sum = 0;
+      for(var i = 1; i < aoa.length; i++){ sum += Number(aoa[i][col.charCodeAt(0) - 65]) || 0; }
+      ws[col + (last + 1)] = { t: "n", f: "SUM(" + col + "2:" + col + last + ")", v: r2(sum) };
+    });
+    // total GP % = total gross profit / total sales
+    var sumSales = 0, sumGp = 0;
+    for(var j = 1; j < aoa.length; j++){ sumSales += Number(aoa[j][5]) || 0; sumGp += Number(aoa[j][12]) || 0; }
+    ws["N" + (last + 1)] = { t: "n", f: "IF(F" + (last + 1) + "=0,0,M" + (last + 1) + "/F" + (last + 1) + ")", v: sumSales ? sumGp / sumSales : 0 };
+    for(var rr = 2; rr <= last + 1; rr++){
+      MONEY_COLS.forEach(function(col){ if(ws[col + rr]) ws[col + rr].z = "#,##0.00"; });
+      if(ws["N" + rr]) ws["N" + rr].z = "0.0%";
+    }
+    ws["!cols"] = [{ wch: 32 }, { wch: 26 }, { wch: 32 }, { wch: 7 }, { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 14 }, { wch: 14 }, { wch: 13 }, { wch: 18 }, { wch: 13 }, { wch: 8 }];
+    ws["!ref"] = "A1:N" + (last + 1);
+    var weeks = {}; rows.forEach(function(p){ weeks[p.check_date] = true; });
+    var weekKeys = Object.keys(weeks);
+    var fname = "Payroll-data-" + (weekKeys.length === 1 ? weekKeys[0] : "all-weeks") + ".xlsx";
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Payroll data");
+    XLSX.writeFile(wb, fname);
+    statusEl.textContent = "Exported " + rows.length + " row(s) to " + fname;
+  }
+  document.getElementById("payroll-export-btn").addEventListener("click", exportPayrollToExcel);
   var fsgExportRows = []; // rows currently shown in the FSG commission table (respects the week filter + search)
   function exportFsgToExcel(){
     var statusEl = document.getElementById("fsg-export-status");
@@ -5621,6 +5675,7 @@ window.addEventListener("unhandledrejection", function(e){
       var payrollWeeks = uniqueSorted(livePayroll.map(function(p){ return p.check_date; })).reverse();
       var payrollBody = document.querySelector("#payroll-table tbody");
       function renderPayrollRows(rows){
+        payrollExportRows = rows.filter(function(p){ return !p.is_deleted; });
         payrollBody.innerHTML = "";
         rows.forEach(function(p){
           var margin = (p.sales ? (Number(p.gross_profit||0) / Number(p.sales)) * 100 : null);
