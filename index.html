@@ -1877,6 +1877,7 @@
                 <div>
                   <div class="panel-title">Headcount by customer &mdash; last 4 weeks</div>
                 </div>
+                <button type="button" class="btn-sm" id="m-hc-cust-export-btn" data-table="m-wk-cust-table">Export to Excel</button>
               </div>
               <div class="table-scroll"><table class="week-grid" id="m-wk-cust-table"></table></div>
             </section>
@@ -1927,7 +1928,7 @@ window.addEventListener("unhandledrejection", function(e){
 (function(){
   "use strict";
 
-  var FIN_HTML = "<div class=\"fin-view\"><div class=\"wrap\">\n  <div class=\"week-picker-bar\">\n    <label for=\"weekSelect\" class=\"week-picker-label\">Showing week</label>\n    <select id=\"weekSelect\"></select>\n  </div>\n  <div class=\"week-picker-note\" id=\"weekPickerNote\" style=\"display:none;\"></div>\n\n  <header class=\"top\">\n    <div>\n      <p class=\"brand-eyebrow\">Workforce Strategies LLC &middot; Operations Ledger</p>\n      <h1>Sales, Margin &amp; Cash Tracker</h1>\n    </div>\n    <div class=\"top-meta\">\n      P&amp;L snapshot <br><strong class=\"as-of-date\" id=\"plAsOf\">\u2014</strong><br>\n      <span id=\"snapCount\"></span>\n    </div>\n  </header>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Company at a glance</h2>\n      <span class=\"section-sub\">Change vs. the most recent prior update on file</span>\n    </div>\n    <div class=\"kpi-grid kpi-grid-4 kpi-grid-top\" id=\"kpiGridPL\"></div>\n    <div class=\"kpi-grid kpi-grid-4 kpi-grid-bottom\" id=\"kpiGridCash\" style=\"margin-top:1px;\"></div>\n  </section>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Biggest gross-profit movers by location</h2>\n      <span class=\"section-sub\" id=\"moversSub\"></span>\n    </div>\n    <div id=\"moversWrap\"></div>\n  </section>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Sales, cost of sales &amp; margin by location</h2>\n      <span class=\"section-sub\" id=\"locAsOf\"></span>\n    </div>\n    <div class=\"table-card\">\n      <div class=\"scroll-x\">\n        <table class=\"loc\">\n          <thead>\n            <tr>\n              <th>Location</th>\n              <th>Sales</th>\n              <th>Cost of Sales</th>\n              <th>Gross Profit</th>\n              <th>Margin</th>\n              <th>Headcount</th>\n              <th>GP / Employee</th>\n            </tr>\n          </thead>\n          <tbody id=\"locBody\"></tbody>\n          <tfoot id=\"locFoot\"></tfoot>\n        </table>\n      </div>\n    </div>\n    <div class=\"form-note\" style=\"margin-top:8px;\">Click a location to see its client sites, sourced from the companies cheat sheet.</div>\n\n    <div class=\"table-card week-card\" style=\"margin-top:20px;\">\n      <div class=\"week-card-head\"><h3 class=\"week-card-title\">Gross sales, cost of sales &amp; gross margin \u2014 last 4 weeks</h3></div>\n      <div class=\"scroll-x\"><table class=\"loc week-grid\" id=\"wkPLTable\"></table></div>\n    </div>\n  </section>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Cash, receivables &amp; payables</h2>\n      <span class=\"section-sub\" id=\"cashAsOf\"></span>\n    </div>\n    <div class=\"trend-row\" id=\"trendRow\"></div>\n\n    <div class=\"table-card week-card\" style=\"margin-top:20px;\">\n      <div class=\"week-card-head\"><h3 class=\"week-card-title\">Cash, AR &amp; AP \u2014 last 4 weeks</h3></div>\n      <div class=\"scroll-x\"><table class=\"loc week-grid\" id=\"wkCashTable\"></table></div>\n    </div>\n  </section>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Workforce headcount by location</h2>\n      <span class=\"section-sub\" id=\"hcAsOf\"></span>\n    </div>\n    <div class=\"trend-card\" style=\"margin-bottom:14px;\" id=\"hcTrendCard\"></div>\n    <div class=\"section-head\" style=\"margin-top:0;\">\n      <h3 class=\"section-title\" style=\"font-size:15px;\">Biggest headcount changes</h3>\n      <span class=\"section-sub\" id=\"hcMoversSub\"></span>\n    </div>\n    <div id=\"hcMoversWrap\" style=\"margin-bottom:14px;\"></div>\n\n    <div class=\"table-card week-card\" style=\"margin-top:20px;\">\n      <div class=\"week-card-head\"><h3 class=\"week-card-title\">Headcount by customer \u2014 last 4 weeks</h3></div>\n      <div class=\"scroll-x\"><table class=\"loc week-grid\" id=\"wkCustTable\"></table></div>\n      <div class=\"form-note\" style=\"margin:0 18px 14px;\">Customer names come straight from the payroll source (Probuild rolls up to Builders First Source; Rollin Coal rolls up to All Truss).</div>\n    </div>\n\n    <div class=\"table-card week-card\">\n      <div class=\"week-card-head\"><h3 class=\"week-card-title\">Headcount by manager \u2014 last 4 weeks</h3></div>\n      <div class=\"scroll-x\"><table class=\"loc week-grid\" id=\"wkMgrTable\"></table></div>\n      <div class=\"form-note\" style=\"margin:0 18px 14px;\">Dynamic Capacity Staffing LLC sites roll up to Cach Labor; every other site rolls up to Workforce Strategies.</div>\n    </div>\n  </section>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Add an update</h2>\n      <span class=\"section-sub\">Weekly for cash/AR/AP/headcount &middot; each period for P&amp;L by location</span>\n    </div>\n    <div id=\"formHost\"></div>\n  </section>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Snapshot history</h2>\n    </div>\n    <div class=\"table-card\" style=\"padding:14px 18px;\">\n      <div class=\"history-list\" id=\"historyList\"></div>\n    </div>\n  </section>\n\n  <footer>\n    Figures sourced from Workforce Strategies LLC P&amp;L by Class and Balance Sheet exports (accrual basis). Location codes reflect QuickBooks class/office assignments.\n  </footer>\n</div></div>\n";
+  var FIN_HTML = "<div class=\"fin-view\"><div class=\"wrap\">\n  <div class=\"week-picker-bar\">\n    <label for=\"weekSelect\" class=\"week-picker-label\">Showing week</label>\n    <select id=\"weekSelect\"></select>\n  </div>\n  <div class=\"week-picker-note\" id=\"weekPickerNote\" style=\"display:none;\"></div>\n\n  <header class=\"top\">\n    <div>\n      <p class=\"brand-eyebrow\">Workforce Strategies LLC &middot; Operations Ledger</p>\n      <h1>Sales, Margin &amp; Cash Tracker</h1>\n    </div>\n    <div class=\"top-meta\">\n      P&amp;L snapshot <br><strong class=\"as-of-date\" id=\"plAsOf\">\u2014</strong><br>\n      <span id=\"snapCount\"></span>\n    </div>\n  </header>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Company at a glance</h2>\n      <span class=\"section-sub\">Change vs. the most recent prior update on file</span>\n    </div>\n    <div class=\"kpi-grid kpi-grid-4 kpi-grid-top\" id=\"kpiGridPL\"></div>\n    <div class=\"kpi-grid kpi-grid-4 kpi-grid-bottom\" id=\"kpiGridCash\" style=\"margin-top:1px;\"></div>\n  </section>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Biggest gross-profit movers by location</h2>\n      <span class=\"section-sub\" id=\"moversSub\"></span>\n    </div>\n    <div id=\"moversWrap\"></div>\n  </section>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Sales, cost of sales &amp; margin by location</h2>\n      <span class=\"section-sub\" id=\"locAsOf\"></span>\n    </div>\n    <div class=\"table-card\">\n      <div class=\"scroll-x\">\n        <table class=\"loc\">\n          <thead>\n            <tr>\n              <th>Location</th>\n              <th>Sales</th>\n              <th>Cost of Sales</th>\n              <th>Gross Profit</th>\n              <th>Margin</th>\n              <th>Headcount</th>\n              <th>GP / Employee</th>\n            </tr>\n          </thead>\n          <tbody id=\"locBody\"></tbody>\n          <tfoot id=\"locFoot\"></tfoot>\n        </table>\n      </div>\n    </div>\n    <div class=\"form-note\" style=\"margin-top:8px;\">Click a location to see its client sites, sourced from the companies cheat sheet.</div>\n\n    <div class=\"table-card week-card\" style=\"margin-top:20px;\">\n      <div class=\"week-card-head\"><h3 class=\"week-card-title\">Gross sales, cost of sales &amp; gross margin \u2014 last 4 weeks</h3></div>\n      <div class=\"scroll-x\"><table class=\"loc week-grid\" id=\"wkPLTable\"></table></div>\n    </div>\n  </section>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Cash, receivables &amp; payables</h2>\n      <span class=\"section-sub\" id=\"cashAsOf\"></span>\n    </div>\n    <div class=\"trend-row\" id=\"trendRow\"></div>\n\n    <div class=\"table-card week-card\" style=\"margin-top:20px;\">\n      <div class=\"week-card-head\"><h3 class=\"week-card-title\">Cash, AR &amp; AP \u2014 last 4 weeks</h3></div>\n      <div class=\"scroll-x\"><table class=\"loc week-grid\" id=\"wkCashTable\"></table></div>\n    </div>\n  </section>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Workforce headcount by location</h2>\n      <span class=\"section-sub\" id=\"hcAsOf\"></span>\n    </div>\n    <div class=\"trend-card\" style=\"margin-bottom:14px;\" id=\"hcTrendCard\"></div>\n    <div class=\"section-head\" style=\"margin-top:0;\">\n      <h3 class=\"section-title\" style=\"font-size:15px;\">Biggest headcount changes</h3>\n      <span class=\"section-sub\" id=\"hcMoversSub\"></span>\n    </div>\n    <div id=\"hcMoversWrap\" style=\"margin-bottom:14px;\"></div>\n\n    <div class=\"table-card week-card\" style=\"margin-top:20px;\">\n      <div class=\"week-card-head\"><h3 class=\"week-card-title\">Headcount by customer \u2014 last 4 weeks</h3><button type=\"button\" class=\"btn-sm\" id=\"hc-cust-export-btn\" data-table=\"wkCustTable\" style=\"margin-left:auto;\">Export to Excel</button></div>\n      <div class=\"scroll-x\"><table class=\"loc week-grid\" id=\"wkCustTable\"></table></div>\n      <div class=\"form-note\" style=\"margin:0 18px 14px;\">Customer names come straight from the payroll source (Probuild rolls up to Builders First Source; Rollin Coal rolls up to All Truss).</div>\n    </div>\n\n    <div class=\"table-card week-card\">\n      <div class=\"week-card-head\"><h3 class=\"week-card-title\">Headcount by manager \u2014 last 4 weeks</h3></div>\n      <div class=\"scroll-x\"><table class=\"loc week-grid\" id=\"wkMgrTable\"></table></div>\n      <div class=\"form-note\" style=\"margin:0 18px 14px;\">Dynamic Capacity Staffing LLC sites roll up to Cach Labor; every other site rolls up to Workforce Strategies.</div>\n    </div>\n  </section>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Add an update</h2>\n      <span class=\"section-sub\">Weekly for cash/AR/AP/headcount &middot; each period for P&amp;L by location</span>\n    </div>\n    <div id=\"formHost\"></div>\n  </section>\n\n  <section>\n    <div class=\"section-head\">\n      <h2 class=\"section-title\">Snapshot history</h2>\n    </div>\n    <div class=\"table-card\" style=\"padding:14px 18px;\">\n      <div class=\"history-list\" id=\"historyList\"></div>\n    </div>\n  </section>\n\n  <footer>\n    Figures sourced from Workforce Strategies LLC P&amp;L by Class and Balance Sheet exports (accrual basis). Location codes reflect QuickBooks class/office assignments.\n  </footer>\n</div></div>\n";
 
   var MOBILE_HTML = "<div class=\"fin-view fin-mobile\"><div class=\"wrap m-wrap\">\n  <header class=\"m-top\">\n    <p class=\"brand-eyebrow\">Workforce Strategies LLC</p>\n    <h1 class=\"m-h1\">Finance Summary</h1>\n    <div class=\"m-asof\">As of <strong id=\"mAsOf\">—</strong></div>\n  </header>\n\n  <section>\n    <h2 class=\"section-title m-section-title\">Company at a glance</h2>\n    <div class=\"kpi-grid m-kpi-grid\" id=\"mKpiGrid\"></div>\n  </section>\n\n  <section>\n    <h2 class=\"section-title m-section-title\">Gross sales, cost of sales &amp; margin — last 4 weeks</h2>\n    <div class=\"table-card m-table-card\">\n      <div class=\"scroll-x\"><table class=\"loc week-grid m-table\" id=\"mWkPLTable\"></table></div>\n    </div>\n  </section>\n\n  <section>\n    <h2 class=\"section-title m-section-title\">Headcount by customer — last 4 weeks</h2>\n    <div class=\"table-card m-table-card\">\n      <div class=\"scroll-x\"><table class=\"loc week-grid m-table\" id=\"mWkCustTable\"></table></div>\n    </div>\n    <div class=\"form-note\" style=\"margin-top:8px;\">Tap the arrow next to a customer to see the sites rolled up under it.</div>\n  </section>\n\n  <footer class=\"m-footer\">Figures sourced from P&amp;L by Class and payroll exports (accrual basis).</footer>\n</div></div>\n";
 
@@ -2650,7 +2651,7 @@ window.addEventListener("unhandledrejection", function(e){
       return;
     }
     var thead = '<thead><tr><th>' + escapeHtml(rowLabel) + '</th>' +
-      cols.map(function(c){ return '<th>' + escapeHtml(fmtWeekCol(c)) + '</th>'; }).join("") +
+      cols.map(function(c){ return '<th data-date="' + escapeHtml(String(c)) + '">' + escapeHtml(fmtWeekCol(c)) + '</th>'; }).join("") +
       (opts.totalCol ? '<th>Total</th>' : "") +
       (opts.wowCols ? '<th>WoW Change ($)</th><th>WoW Change (%)</th>' : "") +
       '</tr></thead>';
@@ -3978,7 +3979,7 @@ window.addEventListener("unhandledrejection", function(e){
       return;
     }
     var thead = '<thead><tr><th>' + escHtml(rowLabel) + '</th>' +
-      cols.map(function(c){ return '<th>' + fmtDate(c) + '</th>'; }).join("") +
+      cols.map(function(c){ return '<th data-date="' + escHtml(String(c)) + '">' + fmtDate(c) + '</th>'; }).join("") +
       (opts.totalCol ? '<th>Total</th>' : "") +
       (opts.wowCols ? '<th>WoW Change ($)</th><th>WoW Change (%)</th>' : "") +
       '</tr></thead>';
@@ -4165,7 +4166,7 @@ window.addEventListener("unhandledrejection", function(e){
     var allCodes = {};
     hcWeeks.forEach(function(s){ ((s.headcount && s.headcount.offices) || []).forEach(function(o){ allCodes[String(o.code)] = 1; }); });
     function fmt(v){ return (typeof v === "number") ? v.toLocaleString("en-US") : "\u2014"; }
-    var thead = '<thead><tr><th>Customer</th>' + cols.map(function(c){ return '<th>' + fmtDate(c) + '</th>'; }).join("") + '<th>Total</th></tr></thead>';
+    var thead = '<thead><tr><th>Customer</th>' + cols.map(function(c){ return '<th data-date="' + escHtml(String(c)) + '">' + fmtDate(c) + '</th>'; }).join("") + '<th>Total</th></tr></thead>';
     var colSums = cols.map(function(){ return 0; });
     var body = "";
     parents.forEach(function(r){
@@ -4736,6 +4737,44 @@ window.addEventListener("unhandledrejection", function(e){
     {key:'gross_profit', label:'Gross profit', type:'number', step:'0.01'},
     {key:'notes', label:'Notes', type:'textarea'}
   ];
+  // Export a "Headcount by customer" table (Finance overview or mobile summary) to Excel, exactly as it is shown, sites included.
+  function exportHeadcountCustomerTable(btn){
+    var tbl = document.getElementById(btn.getAttribute("data-table"));
+    if(!tbl || !tbl.querySelector("thead")){ window.alert("No headcount table to export yet."); return; }
+    if(typeof XLSX === "undefined"){ window.alert("Excel library didn't load; refresh and try again."); return; }
+    var ths = Array.prototype.slice.call(tbl.querySelectorAll("thead th"));
+    var weeks = ths.slice(1).map(function(th){
+      var d = th.getAttribute("data-date");
+      return d ? fmtDateMDY(d) : th.textContent.trim();
+    });
+    var hasTotalCol = weeks.length && weeks[weeks.length - 1] === "Total";
+    var num = function(t){ var n = parseFloat(String(t).replace(/[^0-9.\-]/g, "")); return isNaN(n) ? null : n; };
+    var header = ["Customer", "Site"].concat(weeks);
+    var aoa = [header], parent = "";
+    Array.prototype.forEach.call(tbl.querySelectorAll("tbody tr"), function(tr){
+      var tds = tr.querySelectorAll("td");
+      if(tds.length < 2) return;
+      var label = tds[0].textContent.replace(/[\u25B6\u25BC]/g, "").trim();
+      var vals = Array.prototype.slice.call(tds, 1).map(function(td){ return num(td.textContent); });
+      if(tr.classList.contains("mob-kid")) aoa.push([parent, label].concat(vals));
+      else {
+        if(!tr.classList.contains("total-row")) parent = label;
+        aoa.push([label, ""].concat(vals));
+      }
+    });
+    if(aoa.length < 2){ window.alert("No headcount rows to export yet."); return; }
+    var ws = XLSX.utils.aoa_to_sheet(aoa);
+    var cols = [{ wch: 30 }, { wch: 30 }]; for(var i = 0; i < weeks.length; i++) cols.push({ wch: 12 });
+    ws["!cols"] = cols;
+    var lastWeek = ths.length > 1 ? (ths[hasTotalCol ? ths.length - 2 : ths.length - 1].getAttribute("data-date") || "") : "";
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Headcount by customer");
+    XLSX.writeFile(wb, "Headcount-by-customer" + (lastWeek ? "-" + lastWeek : "") + ".xlsx");
+  }
+  document.addEventListener("click", function(ev){
+    var b = ev.target && ev.target.closest && ev.target.closest("#hc-cust-export-btn, #m-hc-cust-export-btn");
+    if(b) exportHeadcountCustomerTable(b);
+  });
   var payrollExportRows = []; // rows currently shown in the Payroll data table (respects the week filter + search)
   function exportPayrollToExcel(){
     var statusEl = document.getElementById("payroll-export-status");
