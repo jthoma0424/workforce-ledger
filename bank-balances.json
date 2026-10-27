@@ -1,71 +1,38 @@
 {
   "as_of": "2026-10-27",
-  "source": "QuickBooks register balances (chart of accounts), Workforce Strategies LLC, Bank-type accounts with a non-zero balance",
-  "accounts": [
+  "source": "QuickBooks register balances (chart of accounts), Bank-type accounts with a non-zero balance",
+  "companies": [
     {
-      "code": "10000",
-      "name": "Checking - BB&T",
-      "balance": 346.9
+      "key": "ws",
+      "name": "Workforce Strategies",
+      "qbo": "Workforce Strategies LLC",
+      "accounts": [
+        {"code": "10000", "name": "Checking - BB&T", "balance": 346.90},
+        {"code": "10010", "name": "Uwharrie-Workforce Strategies", "balance": 325332.52},
+        {"code": "10015", "name": "Uwharrie-Delta", "balance": 6935.01},
+        {"code": "10020", "name": "Uwharrie-S4L", "balance": 629844.42},
+        {"code": "10025", "name": "Uwharrie-Monarch", "balance": 26571.72},
+        {"code": "10030", "name": "Uwharrie-Peak", "balance": 70989.41},
+        {"code": "10035", "name": "Uwharrie-Southeast Workforce", "balance": 96915.57},
+        {"code": "10040", "name": "Uwharrie-Southeast Workforce Solutions", "balance": 93763.44},
+        {"code": "10045", "name": "Uwharrie-Strategic", "balance": 2432.03},
+        {"code": "10050", "name": "Uwharrie-Summit", "balance": 65423.90},
+        {"code": "10055", "name": "Uwharrie-United", "balance": 87095.03},
+        {"code": "1071", "name": "Bill.com Money In Clearing", "balance": 15748.96},
+        {"code": "19100", "name": "Money Market", "balance": 39963.68}
+      ]
     },
     {
-      "code": "10010",
-      "name": "Uwharrie-Workforce Strategies",
-      "balance": 325332.52
-    },
-    {
-      "code": "10015",
-      "name": "Uwharrie-Delta",
-      "balance": 6935.01
-    },
-    {
-      "code": "10020",
-      "name": "Uwharrie-S4L",
-      "balance": 629844.42
-    },
-    {
-      "code": "10025",
-      "name": "Uwharrie-Monarch",
-      "balance": 26571.72
-    },
-    {
-      "code": "10030",
-      "name": "Uwharrie-Peak",
-      "balance": 70989.41
-    },
-    {
-      "code": "10035",
-      "name": "Uwharrie-Southeast Workforce",
-      "balance": 96915.57
-    },
-    {
-      "code": "10040",
-      "name": "Uwharrie-Southeast Workforce Solutions",
-      "balance": 93763.44
-    },
-    {
-      "code": "10045",
-      "name": "Uwharrie-Strategic",
-      "balance": 2432.03
-    },
-    {
-      "code": "10050",
-      "name": "Uwharrie-Summit",
-      "balance": 65423.9
-    },
-    {
-      "code": "10055",
-      "name": "Uwharrie-United",
-      "balance": 87095.03
-    },
-    {
-      "code": "1071",
-      "name": "Bill.com Money In Clearing",
-      "balance": 15748.96
-    },
-    {
-      "code": "19100",
-      "name": "Money Market",
-      "balance": 39963.68
+      "key": "alltruss",
+      "name": "All Truss",
+      "qbo": "All Truss LLC",
+      "accounts": [
+        {"code": "10000", "name": "Checking - BB&T", "balance": 79566.75},
+        {"code": "10010", "name": "Checking - Uwharrie", "balance": 163932.88},
+        {"code": "10030", "name": "Checking -Uwharrie (6243)", "balance": 200000.00},
+        {"code": "10500", "name": "Savings - BB&T", "balance": 5000.83},
+        {"code": "10600", "name": "Edward Jones - MM", "balance": 62733.00}
+      ]
     }
   ]
 }
