@@ -133,6 +133,10 @@
   .co-desc{font-size:12.5px; color:var(--muted); margin-top:3px;}
   .co-arrow{margin-left:auto; color:var(--muted); font-size:20px; flex:none;}
   .co-card:hover .co-arrow{color:var(--series-1);}
+  .co-bank{margin-top:28px;}
+  .co-bank .co-row td{font-weight:600; background:var(--surface-2);}
+  .co-bank .co-sub td{font-weight:600; border-top:1px solid var(--border);}
+  .co-bank .co-total td{font-weight:700; border-top:2px solid var(--border);}
   @media (max-width:640px){ .who-email{display:none;} }
 
   nav.section-nav{border-bottom:1px solid var(--border); background:var(--surface-1);}
@@ -882,6 +886,21 @@
             <div class="co-arrow" aria-hidden="true">&rarr;</div>
           </button>
         </div>
+        <section class="panel co-bank" id="co-bank-panel" hidden>
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Bank balances &mdash; all companies</div>
+              <div class="panel-sub" id="co-bank-sub"></div>
+            </div>
+          </div>
+          <div class="stat-strip" id="co-bank-stats"></div>
+          <div class="table-scroll" style="margin-top:12px;">
+            <table class="data-table" id="co-bank-table">
+              <thead><tr><th>Company</th><th>Account</th><th>Code</th><th class="num-col">Balance</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
       </div>
     </main>
   </div>
@@ -3236,6 +3255,7 @@ window.addEventListener("unhandledrejection", function(e){
     dashView.hidden = (which !== "ws");
     allTrussView.hidden = (which !== "alltruss");
     if(which === null && location.hash) history.replaceState(null, "", location.pathname + location.search);
+    if(which === null) loadDailyBank().then(renderChooserBankBalances);
     window.scrollTo(0, 0);
   }
   function enterCompany(which){
@@ -4221,9 +4241,57 @@ window.addEventListener("unhandledrejection", function(e){
       var r = await fetch("bank-balances.json?ts=" + Date.now(), { cache: "no-store" });
       if(!r.ok) return null;
       var j = await r.json();
-      if(j && j.as_of && Array.isArray(j.accounts) && j.accounts.length) dailyBank = j;
+      if(j && j.as_of && Array.isArray(j.companies)){
+        var wsCo = j.companies.filter(function(c){ return c && c.key === "ws"; })[0];
+        j.accounts = (wsCo && Array.isArray(wsCo.accounts)) ? wsCo.accounts : [];
+        dailyBank = j;
+      }else if(j && j.as_of && Array.isArray(j.accounts) && j.accounts.length){
+        j.companies = [{ key: "ws", name: "Workforce Strategies", accounts: j.accounts }];
+        dailyBank = j;
+      }
     }catch(e){ dailyBank = null; }
     return dailyBank;
+  }
+  // Company chooser: one table of bank balances across every company in bank-balances.json
+  function renderChooserBankBalances(){
+    var panel = document.getElementById("co-bank-panel");
+    var sub = document.getElementById("co-bank-sub");
+    var stats = document.getElementById("co-bank-stats");
+    var tbody = document.querySelector("#co-bank-table tbody");
+    if(!panel || !sub || !stats || !tbody) return;
+    var cos = (dailyBank && Array.isArray(dailyBank.companies)) ? dailyBank.companies : [];
+    cos = cos.filter(function(c){ return c && Array.isArray(c.accounts) && c.accounts.length; });
+    if(!cos.length){ panel.hidden = true; return; }
+    stats.innerHTML = ""; tbody.innerHTML = "";
+    sub.textContent = "As of " + fmtDateFull(dailyBank.as_of) + " \u00b7 QuickBooks register balances (daily)";
+    var grand = 0, count = 0;
+    cos.forEach(function(c){
+      var accts = c.accounts.slice().sort(function(a, b){ return (Number(b.balance)||0) - (Number(a.balance)||0); });
+      var coTotal = accts.reduce(function(sum, a){ return sum + (Number(a.balance) || 0); }, 0);
+      grand += coTotal; count += accts.length;
+      accts.forEach(function(a, i){
+        var tr = document.createElement("tr");
+        tr.innerHTML =
+          '<td>'+(i === 0 ? '<strong>'+escHtml(c.name || "\u2014")+'</strong>' : '')+'</td>'+
+          '<td>'+escHtml(a.name || "\u2014")+'</td>'+
+          '<td>'+escHtml(a.code || "\u2014")+'</td>'+
+          '<td class="num-col num">'+fmtUSD(Number(a.balance) || 0)+'</td>';
+        tbody.appendChild(tr);
+      });
+      var st = document.createElement("tr"); st.className = "co-sub";
+      st.innerHTML = '<td></td><td colspan="2">Total '+escHtml(c.name || "")+'</td><td class="num-col num">'+fmtUSD(coTotal)+'</td>';
+      tbody.appendChild(st);
+    });
+    var gt = document.createElement("tr"); gt.className = "co-total";
+    gt.innerHTML = '<td colspan="3">Total all companies</td><td class="num-col num">'+fmtUSD(grand)+'</td>';
+    tbody.appendChild(gt);
+    stats.appendChild(kpiTile("Total cash", fmtUSD(grand), null));
+    cos.forEach(function(c){
+      var t = c.accounts.reduce(function(sum, a){ return sum + (Number(a.balance) || 0); }, 0);
+      stats.appendChild(kpiTile(c.name, fmtUSD(t), null));
+    });
+    stats.appendChild(kpiTile("Accounts", String(count), null));
+    panel.hidden = false;
   }
   function renderHomeBankBalances(){
     var sub = document.getElementById("home-bank-sub");
@@ -4240,7 +4308,7 @@ window.addEventListener("unhandledrejection", function(e){
         if((Array.isArray(dc.bank_accounts) && dc.bank_accounts.length) || (dc.cash !== null && dc.cash !== undefined)){ latestSnapDate = dc.date; break; }
       }
     }
-    if(dailyBank && (!latestSnapDate || String(dailyBank.as_of) >= String(latestSnapDate).slice(0,10))){
+    if(dailyBank && dailyBank.accounts.length && (!latestSnapDate || String(dailyBank.as_of) >= String(latestSnapDate).slice(0,10))){
       sub.textContent = "As of " + fmtDateFull(dailyBank.as_of) + " \u00b7 QuickBooks register balances (daily)";
       var dTotal = dailyBank.accounts.reduce(function(sum, a){ return sum + (Number(a.balance) || 0); }, 0);
       stats.appendChild(kpiTile("Total cash", fmtUSD(dTotal), null));
