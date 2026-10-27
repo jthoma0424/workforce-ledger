@@ -4213,6 +4213,18 @@ window.addEventListener("unhandledrejection", function(e){
   }
 
   // ---------- home tab: bank balances ----------
+  // Daily QuickBooks register balances, published to bank-balances.json in this repo.
+  // When that file is at least as new as the latest weekly snapshot, Home shows it instead.
+  var dailyBank = null;
+  async function loadDailyBank(){
+    try{
+      var r = await fetch("bank-balances.json?ts=" + Date.now(), { cache: "no-store" });
+      if(!r.ok) return null;
+      var j = await r.json();
+      if(j && j.as_of && Array.isArray(j.accounts) && j.accounts.length) dailyBank = j;
+    }catch(e){ dailyBank = null; }
+    return dailyBank;
+  }
   function renderHomeBankBalances(){
     var sub = document.getElementById("home-bank-sub");
     var stats = document.getElementById("home-bank-stats");
@@ -4220,6 +4232,29 @@ window.addEventListener("unhandledrejection", function(e){
     if(!sub || !stats || !tbody) return;
     stats.innerHTML = "";
     tbody.innerHTML = "";
+
+    var latestSnapDate = null;
+    if(financeRows && financeRows.length){
+      for(var di = financeRows.length - 1; di >= 0; di--){
+        var dc = financeRows[di];
+        if((Array.isArray(dc.bank_accounts) && dc.bank_accounts.length) || (dc.cash !== null && dc.cash !== undefined)){ latestSnapDate = dc.date; break; }
+      }
+    }
+    if(dailyBank && (!latestSnapDate || String(dailyBank.as_of) >= String(latestSnapDate).slice(0,10))){
+      sub.textContent = "As of " + fmtDateFull(dailyBank.as_of) + " \u00b7 QuickBooks register balances (daily)";
+      var dTotal = dailyBank.accounts.reduce(function(sum, a){ return sum + (Number(a.balance) || 0); }, 0);
+      stats.appendChild(kpiTile("Total cash", fmtUSD(dTotal), null));
+      stats.appendChild(kpiTile("Accounts", String(dailyBank.accounts.length), null));
+      dailyBank.accounts.slice().sort(function(a, b){ return (Number(b.balance)||0) - (Number(a.balance)||0); }).forEach(function(a){
+        var tr = document.createElement("tr");
+        tr.innerHTML =
+          '<td>'+escHtml(a.name || "\u2014")+'</td>'+
+          '<td>'+escHtml(a.code || "\u2014")+'</td>'+
+          '<td class="num-col num">'+fmtUSD(Number(a.balance) || 0)+'</td>';
+        tbody.appendChild(tr);
+      });
+      return;
+    }
 
     if(!financeRows || !financeRows.length){
       sub.textContent = "No finance snapshots found yet.";
@@ -4406,7 +4441,7 @@ window.addEventListener("unhandledrejection", function(e){
   async function loadDashboard(){
     if(loaded) return;
     try{
-      var loadResults = await Promise.all([ fetchFinRows(), loadOfficeMeta() ]);
+      var loadResults = await Promise.all([ fetchFinRows(), loadOfficeMeta(), loadDailyBank() ]);
       financeRows = loadResults[0];
       if(financeRows.length) loaded = true;
     }catch(err){
