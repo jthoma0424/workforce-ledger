@@ -42,7 +42,7 @@ Deno.serve(async () => {
   const balances = new Map<string, { company: string; account: string; code: string; balance: number }>();
   for (const c of companies) {
     for (const a of c.accounts ?? []) {
-      const key = `${c.key ?? c.name}|${a.code ?? a.name}`;
+      const key = `${c.key || c.name}|${a.code || a.name}`;
       balances.set(key, {
         company: c.name ?? c.key ?? "",
         account: a.name ?? "",
