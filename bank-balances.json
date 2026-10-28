@@ -141,6 +141,139 @@
           "balance": 20299.76
         }
       ]
+    },
+    {
+      "key": "badinridge",
+      "name": "Badin Ridge",
+      "qbo": "Badin Ridge LLC",
+      "accounts": [
+        {
+          "code": "10100",
+          "name": "Checking - Uwharrie",
+          "balance": 2315.19
+        }
+      ]
+    },
+    {
+      "key": "ldchomes",
+      "name": "LDC Homes",
+      "qbo": "LDC Homes LLC",
+      "accounts": [
+        {
+          "code": "10000",
+          "name": "Uwharrie Checking",
+          "balance": 31635.64
+        }
+      ]
+    },
+    {
+      "key": "sparetime",
+      "name": "Spare Time Renovations",
+      "qbo": "Spare Time Renovations LLC",
+      "accounts": [
+        {
+          "code": "10100",
+          "name": "Checking - Uwharrie",
+          "balance": 31442.7
+        }
+      ]
+    },
+    {
+      "key": "wickedwings",
+      "name": "Wicked Wings",
+      "qbo": "Wicked Wings LLC",
+      "accounts": [
+        {
+          "name": "Checking - Uwharrie (1946)",
+          "balance": 8581.31
+        }
+      ]
+    },
+    {
+      "key": "lbmministorage",
+      "name": "LBM Mini Storage",
+      "qbo": "LBM Mini Storage LLC",
+      "accounts": [
+        {
+          "code": "10000",
+          "name": "Economy Checking (0998) - 1",
+          "balance": -6415.53
+        },
+        {
+          "code": "10005",
+          "name": "Commercial Savings (1486)",
+          "balance": 19100.72
+        }
+      ]
+    },
+    {
+      "key": "premierhomes",
+      "name": "Premier Homes NC",
+      "qbo": "Premier Homes NC LLC",
+      "accounts": [
+        {
+          "code": "10010",
+          "name": "Checking - Operating (4546)",
+          "balance": 1286.13
+        },
+        {
+          "code": "10020",
+          "name": "Checking - Trust (4554)",
+          "balance": 2480.0
+        }
+      ]
+    },
+    {
+      "key": "carolinashelter",
+      "name": "Carolina Shelter Systems",
+      "qbo": "Carolina Shelter Systems LLC",
+      "accounts": [
+        {
+          "code": "10000",
+          "name": "Checking",
+          "balance": 15553.19
+        }
+      ]
+    },
+    {
+      "key": "premierrentals",
+      "name": "Premier Rentals NC",
+      "qbo": "Premier Rentals NC LLC",
+      "accounts": [
+        {
+          "name": "Checking (8993)",
+          "balance": 4341.35
+        }
+      ]
+    },
+    {
+      "key": "allset",
+      "name": "Allset Supply",
+      "qbo": "Allset Supply LLC",
+      "accounts": [
+        {
+          "code": "10000",
+          "name": "Checking",
+          "balance": 20505.26
+        }
+      ]
+    },
+    {
+      "key": "rileys",
+      "name": "Riley's Labor",
+      "qbo": "Riley's Labor LLC",
+      "accounts": [
+        {
+          "code": "10000",
+          "name": "Checking - Uwharrie",
+          "balance": 8649.92
+        },
+        {
+          "code": "10100",
+          "name": "Checking - Park National",
+          "balance": 119.75
+        }
+      ]
     }
   ]
 }
