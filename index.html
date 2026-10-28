@@ -137,6 +137,14 @@
   .co-bank .co-row td{font-weight:600; background:var(--surface-2);}
   .co-bank .co-sub td{font-weight:600; border-top:1px solid var(--border);}
   .co-bank .co-total td{font-weight:700; border-top:2px solid var(--border);}
+  .co-bank tr.below td{background:var(--critical-bg); color:var(--critical);}
+  .co-bank .below-tag{display:inline-block; margin-left:8px; padding:1px 7px; border-radius:999px; font-family:"Public Sans",sans-serif; font-size:11px; font-weight:600; background:var(--critical); color:#fff;}
+  .co-bank .thr-input{width:120px; text-align:right; font:inherit; color:var(--text-primary); background:var(--surface-1); border:1px solid var(--border); border-radius:6px; padding:3px 6px;}
+  .co-bank .thr-input.saving{opacity:.6;}
+  .co-bank .thr-input.err{border-color:var(--critical);}
+  .bank-alert{margin-top:12px; padding:10px 14px; border-radius:8px; background:var(--critical-bg); color:var(--critical); font-size:13px;}
+  .bank-alert strong{font-weight:700;}
+  .bank-note{margin-top:8px; font-size:12px; color:var(--muted);}
   @media (max-width:640px){ .who-email{display:none;} }
 
   nav.section-nav{border-bottom:1px solid var(--border); background:var(--surface-1);}
@@ -893,6 +901,7 @@
               <div class="panel-sub" id="co-bank-sub"></div>
             </div>
           </div>
+          <div class="bank-alert" id="co-bank-alert" role="alert" hidden></div>
           <div class="stat-strip" id="co-bank-stats"></div>
           <div class="table-scroll" style="margin-top:12px;">
             <table class="data-table" id="co-bank-table">
@@ -3255,7 +3264,7 @@ window.addEventListener("unhandledrejection", function(e){
     dashView.hidden = (which !== "ws");
     allTrussView.hidden = (which !== "alltruss");
     if(which === null && location.hash) history.replaceState(null, "", location.pathname + location.search);
-    if(which === null) loadDailyBank().then(renderChooserBankBalances);
+    if(which === null) refreshChooserBank();
     window.scrollTo(0, 0);
   }
   function enterCompany(which){
@@ -4252,38 +4261,104 @@ window.addEventListener("unhandledrejection", function(e){
     }catch(e){ dailyBank = null; }
     return dailyBank;
   }
-  // Company chooser: one table of bank balances across every company in bank-balances.json
+  // Company chooser: one table of bank balances across every company in bank-balances.json.
+  // Admins can set a low-balance threshold per account (Supabase table bank_thresholds);
+  // accounts under their threshold are highlighted and listed in an alert for admins.
+  // Email alerts to admins are sent by the bank-threshold-alerts Edge Function.
+  var bankThresholds = {};          // "companyKey|accountCode" -> number
+  var bankThresholdsError = null;
+  function thrKey(c, a){ return (c.key || c.name || "") + "|" + (a.code || a.name || ""); }
+  async function loadBankThresholds(){
+    bankThresholds = {}; bankThresholdsError = null;
+    if(!isAdmin()) return bankThresholds;
+    try{
+      var r = await sb.from("bank_thresholds").select("company_key,account_code,threshold");
+      if(r.error){ bankThresholdsError = r.error.message || String(r.error); return bankThresholds; }
+      (r.data || []).forEach(function(t){ bankThresholds[t.company_key + "|" + t.account_code] = Number(t.threshold); });
+    }catch(e){ bankThresholdsError = String(e); }
+    return bankThresholds;
+  }
+  async function saveBankThreshold(companyKey, accountCode, value, input){
+    input.classList.add("saving"); input.classList.remove("err");
+    try{
+      var r;
+      if(value === null){
+        r = await sb.from("bank_thresholds").delete().eq("company_key", companyKey).eq("account_code", accountCode);
+        if(!r.error) delete bankThresholds[companyKey + "|" + accountCode];
+      }else{
+        r = await sb.from("bank_thresholds").upsert({ company_key: companyKey, account_code: accountCode, threshold: value, updated_at: new Date().toISOString() }, { onConflict: "company_key,account_code" });
+        if(!r.error) bankThresholds[companyKey + "|" + accountCode] = value;
+      }
+      if(r.error) throw r.error;
+      renderChooserBankBalances();
+    }catch(e){
+      input.classList.remove("saving"); input.classList.add("err");
+      input.title = "Couldn't save: " + (e && e.message ? e.message : e);
+    }
+  }
+  async function refreshChooserBank(){
+    await Promise.all([ loadDailyBank(), loadBankThresholds() ]);
+    renderChooserBankBalances();
+  }
   function renderChooserBankBalances(){
     var panel = document.getElementById("co-bank-panel");
     var sub = document.getElementById("co-bank-sub");
     var stats = document.getElementById("co-bank-stats");
-    var tbody = document.querySelector("#co-bank-table tbody");
+    var alertBox = document.getElementById("co-bank-alert");
+    var table = document.getElementById("co-bank-table");
+    var tbody = table ? table.querySelector("tbody") : null;
     if(!panel || !sub || !stats || !tbody) return;
     var cos = (dailyBank && Array.isArray(dailyBank.companies)) ? dailyBank.companies : [];
     cos = cos.filter(function(c){ return c && Array.isArray(c.accounts) && c.accounts.length; });
     if(!cos.length){ panel.hidden = true; return; }
+    var admin = isAdmin();
+    var cols = admin ? 5 : 4;
+    table.querySelector("thead").innerHTML = '<tr><th>Company</th><th>Account</th><th>Code</th><th class="num-col">Balance</th>' +
+      (admin ? '<th class="num-col">Alert below</th>' : '') + '</tr>';
     stats.innerHTML = ""; tbody.innerHTML = "";
-    sub.textContent = "As of " + fmtDateFull(dailyBank.as_of) + " \u00b7 QuickBooks register balances (daily)";
-    var grand = 0, count = 0;
+    sub.textContent = "As of " + fmtDateFull(dailyBank.as_of) + " · QuickBooks register balances (daily)";
+    var grand = 0, count = 0, below = [];
     cos.forEach(function(c){
       var accts = c.accounts.slice().sort(function(a, b){ return (Number(b.balance)||0) - (Number(a.balance)||0); });
       var coTotal = accts.reduce(function(sum, a){ return sum + (Number(a.balance) || 0); }, 0);
       grand += coTotal; count += accts.length;
       accts.forEach(function(a, i){
+        var bal = Number(a.balance) || 0;
+        var thr = admin ? bankThresholds[thrKey(c, a)] : undefined;
+        var isBelow = admin && typeof thr === "number" && isFinite(thr) && bal < thr;
+        if(isBelow) below.push({ company: c.name, account: a.name, code: a.code, balance: bal, threshold: thr });
         var tr = document.createElement("tr");
+        if(isBelow) tr.className = "below";
         tr.innerHTML =
-          '<td>'+(i === 0 ? '<strong>'+escHtml(c.name || "\u2014")+'</strong>' : '')+'</td>'+
-          '<td>'+escHtml(a.name || "\u2014")+'</td>'+
-          '<td>'+escHtml(a.code || "\u2014")+'</td>'+
-          '<td class="num-col num">'+fmtUSD(Number(a.balance) || 0)+'</td>';
+          '<td>'+(i === 0 ? '<strong>'+escHtml(c.name || "—")+'</strong>' : '')+'</td>'+
+          '<td>'+escHtml(a.name || "—")+(isBelow ? '<span class="below-tag">Below threshold</span>' : '')+'</td>'+
+          '<td>'+escHtml(a.code || "—")+'</td>'+
+          '<td class="num-col num">'+fmtUSD(bal)+'</td>'+
+          (admin ? '<td class="num-col"></td>' : '');
+        if(admin){
+          var inp = document.createElement("input");
+          inp.type = "number"; inp.step = "0.01"; inp.min = "0"; inp.className = "thr-input";
+          inp.placeholder = "None";
+          inp.setAttribute("aria-label", "Alert threshold for " + (c.name || "") + " " + (a.name || ""));
+          if(typeof thr === "number" && isFinite(thr)) inp.value = String(thr);
+          (function(companyKey, accountCode){
+            inp.addEventListener("change", function(){
+              var raw = inp.value.trim();
+              var v = raw === "" ? null : Number(raw);
+              if(v !== null && (!isFinite(v) || v < 0)){ inp.classList.add("err"); inp.title = "Enter a dollar amount, or leave blank for no alert"; return; }
+              saveBankThreshold(companyKey, accountCode, v, inp);
+            });
+          })(c.key || c.name || "", a.code || a.name || "");
+          tr.lastChild.appendChild(inp);
+        }
         tbody.appendChild(tr);
       });
       var st = document.createElement("tr"); st.className = "co-sub";
-      st.innerHTML = '<td></td><td colspan="2">Total '+escHtml(c.name || "")+'</td><td class="num-col num">'+fmtUSD(coTotal)+'</td>';
+      st.innerHTML = '<td></td><td colspan="2">Total '+escHtml(c.name || "")+'</td><td class="num-col num">'+fmtUSD(coTotal)+'</td>'+(admin ? '<td></td>' : '');
       tbody.appendChild(st);
     });
     var gt = document.createElement("tr"); gt.className = "co-total";
-    gt.innerHTML = '<td colspan="3">Total all companies</td><td class="num-col num">'+fmtUSD(grand)+'</td>';
+    gt.innerHTML = '<td colspan="3">Total all companies</td><td class="num-col num">'+fmtUSD(grand)+'</td>'+(admin ? '<td></td>' : '');
     tbody.appendChild(gt);
     stats.appendChild(kpiTile("Total cash", fmtUSD(grand), null));
     cos.forEach(function(c){
@@ -4291,6 +4366,18 @@ window.addEventListener("unhandledrejection", function(e){
       stats.appendChild(kpiTile(c.name, fmtUSD(t), null));
     });
     stats.appendChild(kpiTile("Accounts", String(count), null));
+    if(alertBox){
+      if(admin && below.length){
+        alertBox.innerHTML = '<strong>' + below.length + (below.length === 1 ? ' account is' : ' accounts are') + ' below the alert threshold:</strong> ' +
+          below.map(function(b){ return escHtml(b.company + " – " + b.account) + ' (' + fmtUSD(b.balance) + ' vs ' + fmtUSD(b.threshold) + ')'; }).join('; ');
+        alertBox.hidden = false;
+      }else if(admin && bankThresholdsError){
+        alertBox.textContent = "Alert thresholds couldn't be loaded (" + bankThresholdsError + "). If the bank_thresholds table hasn't been created yet, run supabase/bank_thresholds.sql in Supabase.";
+        alertBox.hidden = false;
+      }else{
+        alertBox.hidden = true;
+      }
+    }
     panel.hidden = false;
   }
   function renderHomeBankBalances(){
