@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-10-27",
+  "as_of": "2026-10-28",
   "source": "QuickBooks register balances (chart of accounts), Bank-type accounts with a non-zero balance",
   "companies": [
     {
@@ -25,7 +25,7 @@
         {
           "code": "10020",
           "name": "Uwharrie-S4L",
-          "balance": 629844.42
+          "balance": 687219.78
         },
         {
           "code": "10025",
@@ -87,7 +87,7 @@
         {
           "code": "10010",
           "name": "Checking - Uwharrie",
-          "balance": 163932.88
+          "balance": 172962.62
         },
         {
           "code": "10030",
