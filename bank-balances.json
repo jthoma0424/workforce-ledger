@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-10-28",
+  "as_of": "2026-10-29",
   "source": "QuickBooks register balances (chart of accounts), Bank-type accounts with a non-zero balance",
   "companies": [
     {
@@ -15,37 +15,37 @@
         {
           "code": "10010",
           "name": "Uwharrie-Workforce Strategies",
-          "balance": 325332.52
+          "balance": 276545.15
         },
         {
           "code": "10015",
           "name": "Uwharrie-Delta",
-          "balance": 6935.01
+          "balance": 6116.87
         },
         {
           "code": "10020",
           "name": "Uwharrie-S4L",
-          "balance": 687219.78
+          "balance": 471631.03
         },
         {
           "code": "10025",
           "name": "Uwharrie-Monarch",
-          "balance": 26571.72
+          "balance": 19255.46
         },
         {
           "code": "10030",
           "name": "Uwharrie-Peak",
-          "balance": 70989.41
+          "balance": 35151.58
         },
         {
           "code": "10035",
           "name": "Uwharrie-Southeast Workforce",
-          "balance": 96915.57
+          "balance": 99486.42
         },
         {
           "code": "10040",
           "name": "Uwharrie-Southeast Workforce Solutions",
-          "balance": 93763.44
+          "balance": 79782.93
         },
         {
           "code": "10045",
@@ -55,12 +55,12 @@
         {
           "code": "10050",
           "name": "Uwharrie-Summit",
-          "balance": 65423.9
+          "balance": 61294.61
         },
         {
           "code": "10055",
           "name": "Uwharrie-United",
-          "balance": 87095.03
+          "balance": 54644.24
         },
         {
           "code": "1071",
@@ -87,7 +87,7 @@
         {
           "code": "10010",
           "name": "Checking - Uwharrie",
-          "balance": 172962.62
+          "balance": 172850.12
         },
         {
           "code": "10030",
@@ -114,7 +114,7 @@
         {
           "code": "10000",
           "name": "Checking",
-          "balance": 100443.64
+          "balance": 332614.86
         }
       ]
     },
@@ -126,7 +126,7 @@
         {
           "code": "10000",
           "name": "Uwharrie Checking",
-          "balance": 4706.42
+          "balance": 8127.67
         }
       ]
     },
@@ -138,7 +138,7 @@
         {
           "code": "10010",
           "name": "Checking - Uwharrie",
-          "balance": 20299.76
+          "balance": 18635.94
         }
       ]
     },
@@ -150,7 +150,7 @@
         {
           "code": "10100",
           "name": "Checking - Uwharrie",
-          "balance": 2315.19
+          "balance": 2277.19
         }
       ]
     },
@@ -162,7 +162,7 @@
         {
           "code": "10000",
           "name": "Uwharrie Checking",
-          "balance": 31635.64
+          "balance": 30933.27
         }
       ]
     },
@@ -174,7 +174,7 @@
         {
           "code": "10100",
           "name": "Checking - Uwharrie",
-          "balance": 31442.7
+          "balance": 33509.26
         }
       ]
     },
@@ -197,12 +197,12 @@
         {
           "code": "10000",
           "name": "Economy Checking (0998) - 1",
-          "balance": -6415.53
+          "balance": 12811.39
         },
         {
           "code": "10005",
           "name": "Commercial Savings (1486)",
-          "balance": 19100.72
+          "balance": -126.2
         }
       ]
     },
@@ -214,7 +214,7 @@
         {
           "code": "10010",
           "name": "Checking - Operating (4546)",
-          "balance": 1286.13
+          "balance": 1119.13
         },
         {
           "code": "10020",
@@ -231,7 +231,7 @@
         {
           "code": "10000",
           "name": "Checking",
-          "balance": 15553.19
+          "balance": 13164.38
         }
       ]
     },
@@ -242,7 +242,7 @@
       "accounts": [
         {
           "name": "Checking (8993)",
-          "balance": 4341.35
+          "balance": 4217.35
         }
       ]
     },
@@ -254,7 +254,7 @@
         {
           "code": "10000",
           "name": "Checking",
-          "balance": 20505.26
+          "balance": 20223.78
         }
       ]
     },
@@ -266,7 +266,7 @@
         {
           "code": "10000",
           "name": "Checking - Uwharrie",
-          "balance": 8649.92
+          "balance": 18490.66
         },
         {
           "code": "10100",
