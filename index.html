@@ -6621,9 +6621,33 @@ window.addEventListener("unhandledrejection", function(e){
     return {};
   }
   function qbSaveNumbers(map){ try{ localStorage.setItem("wl_qb_last_numbers", JSON.stringify(map)); }catch(e){} }
-  function qbNextNumber(prev){
+  function qbNextNumber(prev, step){
     if(!prev) return "";
-    return String(prev).replace(/\d+/, function(d){ return String(parseInt(d, 10) + 1).padStart(d.length, "0"); });
+    step = (step === undefined) ? 1 : step;
+    return String(prev).replace(/\d+/, function(d){ return String(Math.max(0, parseInt(d, 10) + step)).padStart(d.length, "0"); });
+  }
+  // The seed numbers above were the numbers used for the week with check date 2026-10-16.
+  // Each later week adds one, so numbers never repeat even if this browser forgot what it used last.
+  var QB_SEED_CHECK_DATE = "2026-10-16";
+  function qbWeeksSinceSeed(checkDate){
+    var a = Date.parse(QB_SEED_CHECK_DATE + "T00:00:00Z"), b = Date.parse(checkDate + "T00:00:00Z");
+    if(isNaN(a) || isNaN(b)) return 0;
+    return Math.round((b - a) / (7 * 86400000));
+  }
+  function qbSuggestNumber(loc, checkDate){
+    var seed = QB_SEED_NUMBERS[loc] || "";
+    if(!seed) return "";
+    var byWeek = qbNextNumber(seed, qbWeeksSinceSeed(checkDate));
+    // Also never go below what this browser last downloaded for an EARLIER week.
+    var rec = qbLoadNumbers()[loc];
+    var recNo = rec && typeof rec === "object" ? rec.no : null, recDate = rec && typeof rec === "object" ? rec.date : null;
+    if(recNo && recDate && recDate < checkDate){
+      var m1 = String(recNo).match(/\d+/), m2 = String(byWeek).match(/\d+/);
+      if(m1 && m2 && String(recNo).replace(/\d+/, "") === String(byWeek).replace(/\d+/, "") && parseInt(m1[0], 10) >= parseInt(m2[0], 10)){
+        return qbNextNumber(recNo, 1);
+      }
+    }
+    return byWeek;
   }
   function qbUsDate(iso){ var m = String(iso).match(/(\d{4})-(\d{2})-(\d{2})/); return m ? m[2] + "/" + m[3] + "/" + m[1] : ""; }
   function qbCsvCell(v){ v = (v === null || v === undefined) ? "" : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
@@ -6647,8 +6671,7 @@ window.addEventListener("unhandledrejection", function(e){
       var fsg = uplFsgRows.filter(function(r){ return r.staffing_location === loc; })[0];
       var info = uplPdfInfo[loc];
       var owed = (fsg && fsg.owed_to_s4l !== null && fsg.owed_to_s4l !== undefined) ? fsg.owed_to_s4l : null;
-      var seed = last[loc] || QB_SEED_NUMBERS[loc] || "";
-      var suggested = qbNextNumber(seed);
+      var suggested = qbSuggestNumber(loc, checkDate);
       var tr = document.createElement("tr");
       if(owed === null){
         waiting.push(loc);
@@ -6668,7 +6691,7 @@ window.addEventListener("unhandledrejection", function(e){
     tf.innerHTML = '<td class="strong">Total</td><td></td><td></td><td class="num-col num strong">' + fmtUSD(round2(total)) + '</td><td></td>';
     tbody.appendChild(tf);
     document.getElementById("upl-qb-csv-btn").disabled = !uplQbRows.length;
-    document.getElementById("upl-qb-status").textContent = waiting.length ? "Waiting on: " + waiting.join(", ") + "." : "All six are ready. Check the invoice numbers (suggested from the last ones used).";
+    document.getElementById("upl-qb-status").textContent = waiting.length ? "Waiting on: " + waiting.join(", ") + "." : "All six are ready. Invoice numbers go up by one each week; check them against QuickBooks before importing.";
     document.getElementById("upl-qb-status").style.color = "var(--text-secondary)";
   }
   async function uplQbDownload(){
@@ -6688,7 +6711,7 @@ window.addEventListener("unhandledrejection", function(e){
       var klass = locRow.office_code ? ((locRow.state || r.state || "") + ":" + locRow.office_code) : "";
       var amt = r.owed.toFixed(2);
       lines.push([nums[r.loc], "Frontier Solutions Group", qbUsDate(per.end), qbUsDate(isoAddDays(per.end, 10)), "Net 10", "Solutions 4 Labor LLC", "",
-        "Staffing Services", r.loc + " - payroll period " + qbUsDate(per.start) + " - " + qbUsDate(per.end), 1, amt, amt, "", "", qbUsDate(per.end), klass].map(qbCsvCell).join(","));
+        "Staffing Labor", r.loc + " - payroll period " + qbUsDate(per.start) + " - " + qbUsDate(per.end), 1, amt, amt, "", "", qbUsDate(per.end), klass].map(qbCsvCell).join(","));
     });
     var blob = new Blob([lines.join("\r\n") + "\r\n"], { type: "text/csv" });
     var a = document.createElement("a");
@@ -6696,7 +6719,7 @@ window.addEventListener("unhandledrejection", function(e){
     a.download = "frontier-invoices-" + checkDate + ".csv";
     document.body.appendChild(a); a.click();
     setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
-    var saved = qbLoadNumbers(); Object.keys(nums).forEach(function(k){ saved[k] = nums[k]; }); qbSaveNumbers(saved);
+    var saved = qbLoadNumbers(); Object.keys(nums).forEach(function(k){ saved[k] = { no: nums[k], date: checkDate }; }); qbSaveNumbers(saved);
     statusEl.textContent = "Downloaded " + uplQbRows.length + " invoice(s). Import it in QuickBooks under Import data → Invoices.";
     statusEl.style.color = "var(--good)";
   }
