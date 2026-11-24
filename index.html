@@ -1163,6 +1163,7 @@
         <button class="pill" type="button" data-section="payroll">Payroll &amp; commissions</button>
         <button class="pill" type="button" data-section="paytools">Payroll tools</button>
         <button class="pill admin-only" type="button" data-section="upload" hidden>Weekly update</button>
+        <button class="pill admin-only" type="button" data-section="qbinv" hidden>Invoices to QuickBooks</button>
         <button class="pill" type="button" data-section="mobile">Mobile summary</button>
       </div>
     </nav>
@@ -1842,6 +1843,82 @@
             </section>
           </div>
 
+        </div>
+
+        <div class="view" id="view-qbinv" hidden>
+          <div class="panel-row" style="grid-template-columns:1fr;">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <div class="panel-title">Invoices to QuickBooks</div>
+                  <div class="panel-sub">Add the week&rsquo;s customer invoice PDFs, check what the site read, then send them straight into QuickBooks. Nothing is created until you click <strong>Send</strong>.</div>
+                </div>
+              </div>
+              <div id="qbi-conn" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; font-size:13px;">
+                <span id="qbi-conn-text" style="color:var(--text-secondary);">Checking QuickBooks connection&hellip;</span>
+                <button type="button" class="btn-sm" id="qbi-connect-btn" hidden>Connect to QuickBooks</button>
+                <button type="button" class="btn-sm" id="qbi-lists-btn" hidden>Load QuickBooks lists</button>
+              </div>
+              <div class="upl-row">
+                <div class="crud-field">
+                  <label for="qbi-files">Customer invoice PDFs</label>
+                  <input type="file" id="qbi-files" accept=".pdf" multiple>
+                </div>
+                <div class="crud-field" style="max-width:240px;">
+                  <label for="qbi-week">Invoice date (week ending)</label>
+                  <input type="date" id="qbi-week">
+                </div>
+              </div>
+              <div class="login-msg err" id="qbi-err" style="display:none; margin-top:12px;"></div>
+              <div id="qbi-notes" style="display:none; margin-top:12px;"></div>
+              <datalist id="qbi-dl-customers"></datalist>
+              <datalist id="qbi-dl-classes"></datalist>
+              <datalist id="qbi-dl-terms"></datalist>
+              <datalist id="qbi-dl-items"></datalist>
+              <datalist id="qbi-dl-locations"></datalist>
+            </section>
+          </div>
+          <div class="panel-row" id="qbi-review-row" style="grid-template-columns:minmax(0,1fr);" hidden>
+            <section class="panel" style="min-width:0;">
+              <div class="panel-head">
+                <div>
+                  <div class="panel-title">Review</div>
+                  <div class="panel-sub" id="qbi-review-sub"></div>
+                </div>
+              </div>
+              <div class="table-scroll">
+                <table class="data-table" id="qbi-table">
+                  <thead><tr>
+                    <th>Send</th><th>PDF</th><th class="num-col">Amount</th><th>Status</th><th>Invoice #</th><th>QuickBooks customer</th><th>Terms</th><th>Class</th><th>Item</th><th>Description</th>
+                  </tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <div style="margin-top:14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <label style="font-size:13px; display:flex; align-items:center; gap:6px;"><input type="checkbox" id="qbi-save-map" checked> Remember these customers for next week</label>
+                <button type="button" class="btn-sm" id="qbi-check-btn">Check with QuickBooks</button>
+                <button type="button" class="btn-primary" id="qbi-send-btn" style="width:auto;">Send to QuickBooks</button>
+                <button type="button" class="btn-sm" id="qbi-csv-btn">Download as .csv instead</button>
+                <span id="qbi-status" style="font-size:13px; color:var(--text-secondary);"></span>
+              </div>
+            </section>
+          </div>
+          <div class="panel-row" style="grid-template-columns:1fr;">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <div class="panel-title">Sent from this site</div>
+                  <div class="panel-sub">The latest invoices created in QuickBooks from this page.</div>
+                </div>
+              </div>
+              <div class="table-scroll">
+                <table class="data-table" id="qbi-log-table">
+                  <thead><tr><th>Sent</th><th>Invoice #</th><th>Customer</th><th>Date</th><th class="num-col">Amount</th><th>Mode</th></tr></thead>
+                  <tbody><tr><td colspan="6" style="color:var(--text-secondary);">Nothing sent yet.</td></tr></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
         </div>
 
         <div class="view" id="view-mobile" hidden>
@@ -3085,6 +3162,7 @@ window.addEventListener("unhandledrejection", function(e){
 
   // ---------- role (admin vs. viewer) ----------
   var currentRole = "viewer";
+  var QBI_RETURN = /[?&]qbo=/.test(window.location.search);   // opened by Intuit's redirect after connecting QuickBooks
   function isAdmin(){ return currentRole === "admin"; }
   async function loadRole(session){
     currentRole = "viewer";
@@ -3265,6 +3343,11 @@ window.addEventListener("unhandledrejection", function(e){
       setCompanyScreen("ws"); showSection("mobile");
       return;
     }
+    if(QBI_RETURN && isAdmin()){
+      // back from Intuit's approval page: open the QuickBooks invoices page
+      QBI_RETURN = false; setCompanyScreen("ws"); showSection("qbinv");
+      return;
+    }
     if(location.hash.indexOf("#customer/") === 0){
       // a direct link to a customer page goes straight into Workforce Strategies
       setCompanyScreen("ws");
@@ -3328,7 +3411,7 @@ window.addEventListener("unhandledrejection", function(e){
   });
 
   // ---------- section nav ----------
-  var SECTION_IDS = ["home", "finance", "customers", "invoices", "placements", "payroll", "paytools", "upload", "mobile"];
+  var SECTION_IDS = ["home", "finance", "customers", "invoices", "placements", "payroll", "paytools", "upload", "qbinv", "mobile"];
   var sectionPills = document.querySelectorAll(".pill[data-section]");
   function showSection(sec){
     if(currentRole === "mobile") sec = "mobile";
@@ -3347,6 +3430,7 @@ window.addEventListener("unhandledrejection", function(e){
     else if(sec === "placements") loadPlacements();
     else if(sec === "payroll" || sec === "paytools") loadPayroll();
     else if(sec === "upload") initUploadSection();
+    else if(sec === "qbinv") qbiInit();
     else if(sec === "mobile") loadDashboard().then(renderMobileSummary);
   }
   sectionPills.forEach(function(btn){
@@ -8550,6 +8634,357 @@ window.addEventListener("unhandledrejection", function(e){
     uplReviewed = false;
     uplRefreshBar();
     msg.textContent = failed ? failed + " section(s) did not save. Fix the problem and review again; the ones that saved are safe to save again." : "Payroll, invoices and placements saved. Do the balance sheet (bottom of the page) once the WC bill, FSG commission bill and FSG invoices are in QuickBooks.";
+  }
+
+  // ---- Invoices -> QuickBooks: read customer invoice PDFs ----
+  function qbiMoney(s){ return Number(String(s).replace(/[,\s$]/g, "")); }
+  function qbiIsoFromUs(s){ var m = String(s || "").match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); return m ? m[3] + "-" + ("0" + m[1]).slice(-2) + "-" + ("0" + m[2]).slice(-2) : ""; }
+  // "AZBS Tucson Lumber Invoice WE 11.07.26 - REVISION.pdf" -> "azbs tucson lumber"; the key a customer mapping is saved under
+  function qbiKey(fileName){
+    return String(fileName || "").replace(/\.pdf$/i, "").replace(/\(\d+\)/g, " ")
+      .replace(/invoice\s*(we)?\s*[\d.\s]*/ig, " ").replace(/[-–]\s*(revision|revised)\b/ig, " ").replace(/\b(revision|revised)\b/ig, " ")
+      .replace(/\b\d{1,2}\.+\d{1,2}\.+\d{2,4}\b/g, " ").replace(/[^a-z0-9]+/ig, " ").trim().toLowerCase();
+  }
+  // "...WE 11.07.26..." in the file name -> ISO date
+  function qbiWeekEndFromName(fileName){
+    var m = String(fileName || "").match(/WE\s*(\d{1,2})\.+(\d{1,2})\.+(\d{2,4})/i);
+    if(!m) return "";
+    var y = m[3].length === 2 ? "20" + m[3] : m[3];
+    return y + "-" + ("0" + m[1]).slice(-2) + "-" + ("0" + m[2]).slice(-2);
+  }
+  // text = all page text joined with spaces (pdf.js order). Throws if no amount can be found.
+  function qbiParseText(text, fileName){
+    var flat = String(text || "").replace(/\s+/g, " ");
+    var amtRe = /INVOICE\s+AMOUNT\s*:?\s*\$?\s*(\(?\d[\d,\s]*\.\d{2}\)?)/gi, am = null, m;
+    while((m = amtRe.exec(flat)) !== null) am = m;     // the last one is the grand total
+    if(!am) throw new Error("couldn't find an INVOICE AMOUNT line");
+    var amount = qbiMoney(am[1].replace(/[()]/g, ""));
+    var per = flat.match(/(\d{1,2}\/\d{1,2}\/\d{4})\s*-\s*(\d{1,2}\/\d{1,2}\/\d{4})/);
+    var perEnd = per ? qbiIsoFromUs(per[2]) : "", perStart = per ? qbiIsoFromUs(per[1]) : "";
+    if(!per){   // text on a few PDFs overlaps ("Perio1d1 /01/2026 - 11/07/2026"): keep the end date
+      var e = flat.match(/-\s*(\d{1,2}\/\d{1,2}\/\d{4})/);
+      if(e){ perEnd = qbiIsoFromUs(e[1]); perStart = isoAddDays(perEnd, -6); }
+    }
+    var num = flat.match(/Invoice\s+Number\s*:?\s*([A-Za-z0-9\-]+)/i);
+    var number = num ? num[1] : "";
+    if(!number){ var n2 = flat.match(/PO Box 156\s+([A-Za-z0-9\-]{1,12})\s+Locust/i); if(n2 && !/^\d{5}$/.test(n2[1])) number = n2[1]; }
+    var dm = flat.match(/Invoice\s+Date\s*:?\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
+    return {
+      fileName: fileName, key: qbiKey(fileName), amount: amount, invoiceNumber: number,
+      periodStart: perStart, periodEnd: perEnd, invoiceDate: dm ? qbiIsoFromUs(dm[1]) : "",
+      weekEnd: qbiWeekEndFromName(fileName) || perEnd,
+      isFrontier: /Frontier Solutions Group/i.test(flat),
+      isRevision: /revision|revised/i.test(fileName || "")
+    };
+  }
+  async function qbiReadPdf(file){
+    if(!window.pdfjsLib){ window.pdfjsLib = window["pdfjs-dist/build/pdf"] || window.pdfjsLib; }
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+    var doc = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+    var text = "";
+    for(var p = 1; p <= doc.numPages; p++){
+      var page = await doc.getPage(p);
+      var content = await page.getTextContent();
+      text += content.items.map(function(it){ return it.str; }).join(" ") + "\n";
+    }
+    return qbiParseText(text, file.name);
+  }
+
+  // ---- Invoices -> QuickBooks page ----
+  var qbiRows = [], qbiMap = {}, qbiMapLoaded = false, qbiInited = false, qbiStatusInfo = null, qbiMeta = null, qbiConfirmTimer = null, qbiBusy = false;
+
+  async function qbiCall(action, extra){
+    var body = { action: action };
+    Object.keys(extra || {}).forEach(function(k){ body[k] = extra[k]; });
+    var res = await sb.functions.invoke("qbo", { body: body });
+    if(res.error){
+      var msg = res.error.message || "QuickBooks request failed.";
+      try{ if(res.error.context && res.error.context.json){ var j = await res.error.context.json(); if(j && j.error) msg = j.error; } }catch(e){}
+      if(/not found|404|Failed to send a request/i.test(msg) && !/QuickBooks/i.test(msg)) msg = "The QuickBooks function isn't set up yet (see the setup steps), or it can't be reached.";
+      throw new Error(msg);
+    }
+    if(res.data && res.data.error) throw new Error(res.data.error);
+    return res.data;
+  }
+  function qbiShowErr(msg){ var el = document.getElementById("qbi-err"); if(!el) return; el.textContent = msg || ""; el.style.display = msg ? "block" : "none"; }
+  function qbiSetStatus(msg, color){ var el = document.getElementById("qbi-status"); el.textContent = msg || ""; el.style.color = color || "var(--text-secondary)"; }
+
+  async function qbiLoadStatus(){
+    var txt = document.getElementById("qbi-conn-text"), cBtn = document.getElementById("qbi-connect-btn"), lBtn = document.getElementById("qbi-lists-btn");
+    cBtn.hidden = true; lBtn.hidden = true;
+    try{
+      var s = await qbiCall("status");
+      qbiStatusInfo = s;
+      if(s.connected){
+        var mode = s.env === "production" ? "LIVE QuickBooks" : "SANDBOX (test) QuickBooks";
+        txt.innerHTML = 'Connected to <strong>' + escHtml(s.company || s.realm_id) + '</strong> &mdash; <span style="font-weight:600; color:' + (s.env === "production" ? "var(--good)" : "var(--warn, #b7791f)") + ';">' + mode + '</span>.';
+        cBtn.textContent = "Reconnect"; cBtn.hidden = false; lBtn.hidden = false;
+      } else {
+        txt.textContent = s.configured ? "QuickBooks isn't connected yet." : "The QuickBooks function needs its keys set (see the setup steps).";
+        cBtn.textContent = "Connect to QuickBooks"; cBtn.hidden = !s.configured;
+      }
+    }catch(e){
+      qbiStatusInfo = null;
+      txt.textContent = e.message;
+      cBtn.hidden = true;
+    }
+  }
+  async function qbiLoadLists(){
+    var btn = document.getElementById("qbi-lists-btn"); btn.disabled = true; btn.textContent = "Loading…";
+    try{
+      qbiMeta = await qbiCall("meta");
+      function fill(id, arr){ document.getElementById(id).innerHTML = (arr || []).map(function(v){ return '<option value="' + escHtml(v) + '"></option>'; }).join(""); }
+      fill("qbi-dl-customers", qbiMeta.customers); fill("qbi-dl-classes", qbiMeta.classes); fill("qbi-dl-terms", qbiMeta.terms);
+      fill("qbi-dl-items", qbiMeta.items); fill("qbi-dl-locations", qbiMeta.locations);
+      btn.textContent = "Lists loaded (" + (qbiMeta.customers || []).length + " customers)";
+      qbiApplySuggestions(); qbiRender();
+    }catch(e){ btn.textContent = "Load QuickBooks lists"; qbiShowErr(e.message); }
+    finally{ btn.disabled = false; }
+  }
+  async function qbiLoadMap(){
+    try{
+      var r = await sb.from("qbo_invoice_map").select("*");
+      if(r.error) throw r.error;
+      qbiMap = {}; (r.data || []).forEach(function(m){ qbiMap[m.match_key] = m; });
+      qbiMapLoaded = true;
+    }catch(e){ qbiMapLoaded = false; qbiShowErr("Couldn't load saved customer mappings: " + e.message + " (has the qbo_setup.sql been run?)"); }
+  }
+  async function qbiLoadLog(){
+    var tb = document.querySelector("#qbi-log-table tbody");
+    try{
+      var r = await sb.from("qbo_invoice_log").select("*").order("created_at", { ascending: false }).limit(30);
+      if(r.error) throw r.error;
+      if(!r.data.length){ tb.innerHTML = '<tr><td colspan="6" style="color:var(--text-secondary);">Nothing sent yet.</td></tr>'; return; }
+      tb.innerHTML = r.data.map(function(l){
+        return '<tr><td>' + escHtml(String(l.created_at).slice(0, 16).replace("T", " ")) + '</td><td class="strong">' + escHtml(l.doc_number) + '</td><td>' + escHtml(l.customer || "") +
+          '</td><td>' + escHtml(l.txn_date || "") + '</td><td class="num-col num">' + fmtUSD(l.amount) + '</td><td>' + (l.env === "production" ? "Live" : "Sandbox") + '</td></tr>';
+      }).join("");
+    }catch(e){ tb.innerHTML = '<tr><td colspan="6" style="color:var(--text-secondary);">Log not available yet.</td></tr>'; }
+  }
+
+  function qbiNetDays(terms){ var m = String(terms || "").match(/net\s*(\d+)/i); return m ? parseInt(m[1], 10) : null; }
+  function qbiDue(date, terms){ var n = qbiNetDays(terms); return (date && n !== null) ? isoAddDays(date, n) : ""; }
+  function qbiSuggestCustomer(key){
+    if(!qbiMeta || !qbiMeta.customers) return "";
+    var toks = key.split(" ").filter(function(t){ return t.length >= 3; });
+    if(!toks.length) return "";
+    var best = "", bestScore = 0, tie = false;
+    qbiMeta.customers.forEach(function(c){
+      var lc = c.toLowerCase(), sc = 0;
+      toks.forEach(function(t){ if(lc.indexOf(t) !== -1) sc++; });
+      if(sc > bestScore){ best = c; bestScore = sc; tie = false; } else if(sc === bestScore && sc > 0) tie = true;
+    });
+    return (bestScore > 0 && !tie) ? best : "";
+  }
+  function qbiApplySuggestions(){
+    qbiRows.forEach(function(r){ if(!r.mapped && !r.customer && !r.skip){ var s = qbiSuggestCustomer(r.key); if(s){ r.customer = s; r.suggested = true; } } });
+  }
+  function qbiDescription(r){
+    var nm = r.descName || (r.customer ? r.customer.split(":").pop() : r.key);
+    return nm + " - payroll period " + qbUsDate(r.periodStart || r.date) + " - " + qbUsDate(r.periodEnd || r.date);
+  }
+
+  async function qbiHandleFiles(files){
+    qbiShowErr(""); qbiSetStatus("");
+    var notes = [], rows = [];
+    if(!qbiMapLoaded) await qbiLoadMap();
+    for(var i = 0; i < files.length; i++){
+      var f = files[i];
+      try{
+        var info = await qbiReadPdf(f);
+        var m = qbiMap[info.key] || null;
+        var r = {
+          id: "r" + i, file: f.name, key: info.key, info: info, invoiceNo: info.invoiceNumber, amount: info.amount,
+          periodStart: info.periodStart, periodEnd: info.periodEnd, weekEnd: info.weekEnd,
+          mapped: !!m, suggested: false,
+          customer: m ? m.qbo_customer : "", terms: m ? (m.terms || "Net 10") : "Net 10", cls: m ? (m.class || "") : "",
+          location: m ? (m.location || "Solutions 4 Labor LLC") : "Solutions 4 Labor LLC", item: m ? (m.item || "Staffing Labor") : "Staffing Labor",
+          descName: m ? (m.description_name || "") : "",
+          send: !!m, skip: false, replaced: false, status: "", statusKind: "", done: false
+        };
+        if(info.isFrontier){ r.skip = true; r.send = false; r.status = "Frontier (FSG) invoice — handled in the Weekly update, not here."; r.statusKind = "warn"; }
+        rows.push(r);
+      }catch(e){
+        notes.push(f.name + ": " + (e && e.message ? e.message : "couldn't read this PDF."));
+      }
+    }
+    // the same invoice number twice (an original and its REVISION): send the revision only
+    var byNo = {};
+    rows.forEach(function(r){ if(r.invoiceNo && !r.skip){ (byNo[r.key + "|" + r.invoiceNo] = byNo[r.key + "|" + r.invoiceNo] || []).push(r); } });
+    Object.keys(byNo).forEach(function(k){
+      var g = byNo[k]; if(g.length < 2) return;
+      var keep = g.filter(function(r){ return r.info.isRevision; })[0] || g[g.length - 1];
+      g.forEach(function(r){ if(r !== keep){ r.send = false; r.replaced = true; r.status = "Replaced by " + keep.file; r.statusKind = "warn"; } });
+      notes.push("Invoice " + g[0].invoiceNo + " (" + g[0].key + ") has more than one PDF; only " + keep.file + " is selected.");
+    });
+    qbiRows = rows;
+    var wk = document.getElementById("qbi-week");
+    if(!wk.value){
+      var counts = {}, bestD = "", bestN = 0;
+      rows.forEach(function(r){ if(r.weekEnd){ counts[r.weekEnd] = (counts[r.weekEnd] || 0) + 1; if(counts[r.weekEnd] > bestN){ bestN = counts[r.weekEnd]; bestD = r.weekEnd; } } });
+      wk.value = bestD;
+    }
+    qbiApplySuggestions();
+    qbiShowNotes(notes);
+    qbiRender();
+  }
+  function qbiShowNotes(notes){
+    var box = document.getElementById("qbi-notes");
+    if(!notes.length){ box.style.display = "none"; box.innerHTML = ""; return; }
+    box.style.display = "block";
+    box.innerHTML = '<div class="upl-warn-box"><div class="upl-warn-title">' + notes.length + ' thing(s) to check</div><ul>' + notes.map(function(w){ return "<li>" + escHtml(w) + "</li>"; }).join("") + "</ul></div>";
+  }
+
+  function qbiRender(){
+    var row = document.getElementById("qbi-review-row"), tb = document.querySelector("#qbi-table tbody");
+    row.hidden = !qbiRows.length;
+    tb.innerHTML = "";
+    qbiRows.forEach(function(r, idx){
+      var tr = document.createElement("tr");
+      var dis = (r.skip || r.done) ? " disabled" : "";
+      function inp(field, val, list, w){ return '<input type="text" data-i="' + idx + '" data-f="' + field + '" value="' + escHtml(val || "") + '"' + (list ? ' list="' + list + '"' : "") + ' style="width:' + w + 'px;"' + dis + '>'; }
+      var color = r.statusKind === "ok" ? "var(--good)" : r.statusKind === "err" ? "var(--critical)" : "var(--text-secondary)";
+      var statusTxt = r.status || (r.mapped ? "Mapped" : (r.suggested ? "Suggested customer — check it, then tick Send" : (r.customer ? "" : "Pick a customer, then tick Send")));
+      tr.innerHTML = '<td><input type="checkbox" data-i="' + idx + '" data-f="send"' + (r.send ? " checked" : "") + dis + '></td>' +
+        '<td style="max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="' + escHtml(r.file) + '">' + escHtml(r.file) + '</td>' +
+        '<td class="num-col num strong">' + fmtUSD(r.amount) + '</td>' +
+        '<td style="color:' + color + '; min-width:170px; max-width:230px;">' + escHtml(statusTxt) + '</td>' +
+        '<td>' + inp("invoiceNo", r.invoiceNo, "", 70) + '</td>' +
+        '<td>' + inp("customer", r.customer, "qbi-dl-customers", 250) + '</td>' +
+        '<td>' + inp("terms", r.terms, "qbi-dl-terms", 70) + '</td>' +
+        '<td>' + inp("cls", r.cls, "qbi-dl-classes", 90) + '</td>' +
+        '<td>' + inp("item", r.item, "qbi-dl-items", 120) + '</td>' +
+        '<td>' + inp("descName", r.descName || (r.customer ? r.customer.split(":").pop() : ""), "", 190) + '</td>';
+      tb.appendChild(tr);
+    });
+    qbiSummary();
+  }
+  function qbiSelected(){ return qbiRows.filter(function(r){ return r.send && !r.skip && !r.done; }); }
+  function qbiSummary(){
+    var sel = qbiSelected(), total = 0; sel.forEach(function(r){ total += r.amount; });
+    var env = qbiStatusInfo && qbiStatusInfo.connected ? (qbiStatusInfo.env === "production" ? "live QuickBooks" : "SANDBOX QuickBooks") : "";
+    document.getElementById("qbi-review-sub").textContent = qbiRows.length + " PDF(s) read. " + sel.length + " selected for sending, totalling " + fmtUSD(round2(total)) + (env ? " (" + env + ")." : ".");
+    var sb2 = document.getElementById("qbi-send-btn");
+    sb2.disabled = !sel.length || qbiBusy || !(qbiStatusInfo && qbiStatusInfo.connected);
+    document.getElementById("qbi-check-btn").disabled = !sel.length || qbiBusy || !(qbiStatusInfo && qbiStatusInfo.connected);
+    document.getElementById("qbi-csv-btn").disabled = !sel.length;
+    if(!qbiConfirmTimer) sb2.textContent = "Send to QuickBooks";
+  }
+  function qbiPayload(r){
+    var date = document.getElementById("qbi-week").value || r.weekEnd;
+    return { doc_number: String(r.invoiceNo || "").trim(), customer: String(r.customer || "").trim(), txn_date: date, due_date: qbiDue(date, r.terms),
+      terms: String(r.terms || "").trim(), class: String(r.cls || "").trim(), location: r.location || "", item: String(r.item || "").trim(),
+      description: (function(){ var nm = r.descName || (r.customer ? r.customer.split(":").pop() : r.key); return nm + " - payroll period " + qbUsDate(r.periodStart || date) + " - " + qbUsDate(r.periodEnd || date); })(),
+      amount: r.amount, source_file: r.file };
+  }
+  function qbiApplyResults(sel, res){
+    var ok = 0, bad = 0;
+    res.results.forEach(function(x, i){
+      var r = sel[i]; if(!r) return;
+      if(x.ok && x.status === "created"){ r.done = true; r.send = false; r.status = "Created in QuickBooks (id " + x.qbo_id + ")" + (x.warning ? " — " + x.warning : ""); r.statusKind = "ok"; ok++; }
+      else if(x.ok){ r.status = "Ready"; r.statusKind = "ok"; ok++; }
+      else { r.status = x.error || "Failed"; r.statusKind = "err"; bad++; if(x.status === "exists") r.send = false; }
+    });
+    return { ok: ok, bad: bad };
+  }
+  async function qbiCheck(){
+    var sel = qbiSelected(); if(!sel.length) return;
+    qbiBusy = true; qbiSummary(); qbiSetStatus("Checking with QuickBooks…"); qbiShowErr("");
+    try{
+      var res = await qbiCall("validate", { invoices: sel.map(qbiPayload) });
+      var c = qbiApplyResults(sel, res);
+      qbiSetStatus(c.ok + " ready, " + c.bad + " need attention.", c.bad ? "var(--critical)" : "var(--good)");
+    }catch(e){ qbiShowErr(e.message); qbiSetStatus(""); }
+    finally{ qbiBusy = false; qbiRender(); }
+  }
+  function qbiClearConfirm(){ if(qbiConfirmTimer){ clearTimeout(qbiConfirmTimer); qbiConfirmTimer = null; } }
+  async function qbiSendClick(){
+    var sel = qbiSelected(); if(!sel.length) return;
+    var btn = document.getElementById("qbi-send-btn");
+    var missing = sel.filter(function(r){ return !r.invoiceNo || !r.customer || !r.item; });
+    if(missing.length){ qbiShowErr("Fill in the invoice number, customer and item for: " + missing.map(function(r){ return r.file; }).join(", ") + "."); return; }
+    if(!document.getElementById("qbi-week").value){ qbiShowErr("Set the invoice date (week ending) first."); return; }
+    if(!qbiConfirmTimer){
+      var total = 0; sel.forEach(function(r){ total += r.amount; });
+      var live = qbiStatusInfo && qbiStatusInfo.env === "production";
+      btn.textContent = "Click again to create " + sel.length + " invoice(s), " + fmtUSD(round2(total)) + (live ? " in LIVE QuickBooks" : " in SANDBOX");
+      qbiConfirmTimer = setTimeout(function(){ qbiConfirmTimer = null; qbiSummary(); }, 10000);
+      return;
+    }
+    qbiClearConfirm();
+    qbiBusy = true; btn.textContent = "Sending…"; qbiSummary(); qbiShowErr(""); qbiSetStatus("");
+    try{
+      var res = await qbiCall("send", { invoices: sel.map(qbiPayload) });
+      var c = qbiApplyResults(sel, res);
+      if(document.getElementById("qbi-save-map").checked){
+        var saves = sel.filter(function(r){ return r.done && r.customer; }).map(function(r){
+          return { match_key: r.key, qbo_customer: r.customer, terms: r.terms || "Net 10", class: r.cls || null, location: r.location || "Solutions 4 Labor LLC",
+            item: r.item || "Staffing Labor", description_name: r.descName || r.customer.split(":").pop(), updated_at: new Date().toISOString() };
+        });
+        if(saves.length){
+          var sv = await sb.from("qbo_invoice_map").upsert(saves, { onConflict: "match_key" });
+          if(sv.error) qbiShowErr("Invoices were created, but saving the customer mappings failed: " + sv.error.message);
+          else saves.forEach(function(s){ qbiMap[s.match_key] = s; });
+        }
+      }
+      qbiSetStatus(c.ok + " created, " + c.bad + " not created.", c.bad ? "var(--critical)" : "var(--good)");
+      qbiLoadLog();
+    }catch(e){ qbiShowErr(e.message); }
+    finally{ qbiBusy = false; qbiRender(); }
+  }
+  function qbiCsv(){
+    var sel = qbiSelected(), date = document.getElementById("qbi-week").value;
+    var head = ["*InvoiceNo","*Customer","*InvoiceDate","*DueDate","Terms","Location","Memo","Item(Product/Service)","ItemDescription","ItemQuantity","ItemRate","*ItemAmount","Taxable","TaxRate","Service Date","Class"];
+    var lines = [head.join(",")];
+    sel.forEach(function(r){
+      var p = qbiPayload(r), amt = r.amount.toFixed(2);
+      lines.push([p.doc_number, p.customer, qbUsDate(p.txn_date), qbUsDate(p.due_date), p.terms, p.location, "", p.item, p.description, 1, amt, amt, "", "", qbUsDate(p.txn_date), p.class].map(qbCsvCell).join(","));
+    });
+    var blob = new Blob([lines.join("\r\n") + "\r\n"], { type: "text/csv" });
+    var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "invoices-" + (date || "week") + ".csv";
+    document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+  async function qbiConnect(){
+    var btn = document.getElementById("qbi-connect-btn"); btn.disabled = true;
+    try{
+      var r = await qbiCall("connect_url");
+      window.location.href = r.url;
+    }catch(e){ qbiShowErr(e.message); btn.disabled = false; }
+  }
+  function qbiInit(){
+    if(!isAdmin()) return;
+    // coming back from Intuit's approval page
+    var q = new URLSearchParams(window.location.search), res = q.get("qbo");
+    if(res){
+      try{ history.replaceState(null, "", location.pathname); }catch(e){}
+      if(res === "connected") qbiSetStatus("QuickBooks connected.", "var(--good)");
+      else if(res === "cancelled") qbiShowErr("The QuickBooks connection was cancelled.");
+      else qbiShowErr(q.get("qbomsg") || "The QuickBooks connection didn't finish.");
+    }
+    qbiLoadStatus(); qbiLoadLog();
+    if(qbiInited) return;
+    qbiInited = true;
+    qbiLoadMap();
+    document.getElementById("qbi-files").addEventListener("change", function(e){ qbiHandleFiles(Array.prototype.slice.call(e.target.files || [])); });
+    document.getElementById("qbi-connect-btn").addEventListener("click", qbiConnect);
+    document.getElementById("qbi-lists-btn").addEventListener("click", qbiLoadLists);
+    document.getElementById("qbi-check-btn").addEventListener("click", qbiCheck);
+    document.getElementById("qbi-send-btn").addEventListener("click", qbiSendClick);
+    document.getElementById("qbi-csv-btn").addEventListener("click", qbiCsv);
+    document.getElementById("qbi-week").addEventListener("change", function(){ qbiClearConfirm(); qbiSummary(); });
+    var tbl = document.getElementById("qbi-table");
+    function onEdit(e){
+      var t = e.target, i = t.getAttribute && t.getAttribute("data-i"); if(i === null || i === undefined) return;
+      var r = qbiRows[Number(i)], f = t.getAttribute("data-f"); if(!r) return;
+      qbiClearConfirm();
+      if(f === "send") r.send = t.checked; else r[f] = t.value;
+      if(f === "customer"){ r.mapped = false; r.suggested = false; if(t.value.trim() && !r.skip && !r.done && !r.replaced) r.send = true; }
+      if(f !== "send"){ r.status = ""; r.statusKind = ""; }
+      if(f === "send") qbiSummary(); else qbiSummary();
+    }
+    tbl.addEventListener("change", function(e){ onEdit(e); if(e.target.getAttribute("data-f") === "customer" || e.target.getAttribute("data-f") === "send") qbiRender(); });
+    tbl.addEventListener("input", onEdit);
+    // the shared page-level week-ending field could pre-fill later; nothing else to wire
   }
 
   function initUploadSection(){
