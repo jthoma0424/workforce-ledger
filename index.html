@@ -8696,7 +8696,10 @@ window.addEventListener("unhandledrejection", function(e){
   async function qbiCall(action, extra){
     var body = { action: action };
     Object.keys(extra || {}).forEach(function(k){ body[k] = extra[k]; });
-    var res = await sb.functions.invoke("qbo", { body: body });
+    var res = await Promise.race([
+      sb.functions.invoke("qbo", { body: body }),
+      new Promise(function(_, rej){ setTimeout(function(){ rej(new Error("QuickBooks didn't answer within a minute. Try again; if it keeps happening, check the qbo function's logs in Supabase.")); }, 60000); })
+    ]);
     if(res.error){
       var msg = res.error.message || "QuickBooks request failed.";
       try{ if(res.error.context && res.error.context.json){ var j = await res.error.context.json(); if(j && j.error) msg = j.error; } }catch(e){}
@@ -8706,7 +8709,10 @@ window.addEventListener("unhandledrejection", function(e){
     if(res.data && res.data.error) throw new Error(res.data.error);
     return res.data;
   }
-  function qbiShowErr(msg){ var el = document.getElementById("qbi-err"); if(!el) return; el.textContent = msg || ""; el.style.display = msg ? "block" : "none"; }
+  function qbiShowErr(msg){
+    var el = document.getElementById("qbi-err"); if(!el) return; el.textContent = msg || ""; el.style.display = msg ? "block" : "none";
+    var st = document.getElementById("qbi-status"); if(st && msg){ st.textContent = msg; st.style.color = "var(--critical)"; }
+  }
   function qbiSetStatus(msg, color){ var el = document.getElementById("qbi-status"); el.textContent = msg || ""; el.style.color = color || "var(--text-secondary)"; }
 
   async function qbiLoadStatus(){
@@ -8859,14 +8865,19 @@ window.addEventListener("unhandledrejection", function(e){
     });
     qbiSummary();
   }
+  function qbiNotReady(){
+    if(!(qbiStatusInfo && qbiStatusInfo.connected)){ return "QuickBooks isn't connected yet. Use Connect to QuickBooks at the top of the page."; }
+    if(!qbiSelected().length){ return "No rows are ticked. Pick a QuickBooks customer on a row (that ticks its Send box), then try again."; }
+    return "";
+  }
   function qbiSelected(){ return qbiRows.filter(function(r){ return r.send && !r.skip && !r.done; }); }
   function qbiSummary(){
     var sel = qbiSelected(), total = 0; sel.forEach(function(r){ total += r.amount; });
     var env = qbiStatusInfo && qbiStatusInfo.connected ? (qbiStatusInfo.env === "production" ? "live QuickBooks" : "SANDBOX QuickBooks") : "";
     document.getElementById("qbi-review-sub").textContent = qbiRows.length + " PDF(s) read. " + sel.length + " selected for sending, totalling " + fmtUSD(round2(total)) + (env ? " (" + env + ")." : ".");
     var sb2 = document.getElementById("qbi-send-btn");
-    sb2.disabled = !sel.length || qbiBusy || !(qbiStatusInfo && qbiStatusInfo.connected);
-    document.getElementById("qbi-check-btn").disabled = !sel.length || qbiBusy || !(qbiStatusInfo && qbiStatusInfo.connected);
+    sb2.disabled = qbiBusy;
+    document.getElementById("qbi-check-btn").disabled = qbiBusy;
     document.getElementById("qbi-csv-btn").disabled = !sel.length;
     if(!qbiConfirmTimer) sb2.textContent = "Send to QuickBooks";
   }
@@ -8888,18 +8899,20 @@ window.addEventListener("unhandledrejection", function(e){
     return { ok: ok, bad: bad };
   }
   async function qbiCheck(){
-    var sel = qbiSelected(); if(!sel.length) return;
+    var why = qbiNotReady(); if(why){ qbiSetStatus(why, "var(--critical)"); return; }
+    var sel = qbiSelected();
     qbiBusy = true; qbiSummary(); qbiSetStatus("Checking with QuickBooks…"); qbiShowErr("");
     try{
       var res = await qbiCall("validate", { invoices: sel.map(qbiPayload) });
       var c = qbiApplyResults(sel, res);
       qbiSetStatus(c.ok + " ready, " + c.bad + " need attention.", c.bad ? "var(--critical)" : "var(--good)");
-    }catch(e){ qbiShowErr(e.message); qbiSetStatus(""); }
+    }catch(e){ qbiShowErr(e.message); }
     finally{ qbiBusy = false; qbiRender(); }
   }
   function qbiClearConfirm(){ if(qbiConfirmTimer){ clearTimeout(qbiConfirmTimer); qbiConfirmTimer = null; } }
   async function qbiSendClick(){
-    var sel = qbiSelected(); if(!sel.length) return;
+    var why = qbiNotReady(); if(why){ qbiSetStatus(why, "var(--critical)"); return; }
+    var sel = qbiSelected();
     var btn = document.getElementById("qbi-send-btn");
     var missing = sel.filter(function(r){ return !r.invoiceNo || !r.customer || !r.item; });
     if(missing.length){ qbiShowErr("Fill in the invoice number, customer and item for: " + missing.map(function(r){ return r.file; }).join(", ") + "."); return; }
