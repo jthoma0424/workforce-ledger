@@ -182,6 +182,55 @@ async function meta() {
   };
 }
 
+
+// ---------- reading from QuickBooks (nothing here changes your books) ----------
+const isDate = (d: unknown) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d);
+
+// Invoices dated from..to, in the same shape as the "Invoice List by Date" report the weekly update reads.
+async function invoiceList(from: string, to: string) {
+  if (!isDate(from) || !isDate(to)) throw new HttpError(400, "Give a from and to date.");
+  const custs = await listAll("Customer", "Id, FullyQualifiedName", "where Active in (true, false)");
+  const nameById = new Map<string, string>(custs.map((c) => [String(c.Id), String(c.FullyQualifiedName)]));
+  const rows: any[] = [];
+  for (let start = 1; start < 5000; start += 500) {
+    const r = await query(`select * from Invoice where TxnDate >= '${from}' and TxnDate <= '${to}' order by TxnDate startposition ${start} maxresults 500`);
+    const page = r.Invoice ?? [];
+    for (const i of page) {
+      rows.push({
+        id: i.Id, date: i.TxnDate, due: i.DueDate ?? null, num: i.DocNumber ?? "",
+        customer: nameById.get(String(i.CustomerRef?.value)) ?? i.CustomerRef?.name ?? "",
+        amount: Number(i.TotalAmt) || 0, balance: Number(i.Balance) || 0,
+        location: i.DepartmentRef?.name ?? null,
+      });
+    }
+    if (page.length < 500) break;
+  }
+  return { from, to, count: rows.length, invoices: rows };
+}
+
+// Balance sheet as of a date (accrual), flattened into plain [label, amount] rows.
+async function balanceSheet(asOf: string) {
+  if (!isDate(asOf)) throw new HttpError(400, "Give an as-of date.");
+  const rep = await qbo(`reports/BalanceSheet?start_date=${asOf}&end_date=${asOf}&accounting_method=Accrual`);
+  const out: Array<[string, number | null]> = [];
+  const val = (cd: any[] | undefined) => {
+    const v = cd && cd.length > 1 ? cd[cd.length - 1]?.value : undefined;
+    if (v === undefined || v === null || v === "") return null;
+    const n = Number(String(v).replace(/,/g, ""));
+    return isFinite(n) ? n : null;
+  };
+  const walk = (rows: any[] | undefined) => {
+    for (const r of rows ?? []) {
+      if (r.Header?.ColData?.[0]?.value) out.push([String(r.Header.ColData[0].value), val(r.Header.ColData)]);
+      if (r.ColData) out.push([String(r.ColData[0]?.value ?? ""), val(r.ColData)]);
+      if (r.Rows?.Row) walk(r.Rows.Row);
+      if (r.Summary?.ColData?.[0]?.value) out.push([String(r.Summary.ColData[0].value), val(r.Summary.ColData)]);
+    }
+  };
+  walk(rep.Rows?.Row);
+  return { as_of: asOf, report_end: rep.Header?.EndPeriod ?? asOf, basis: rep.Header?.ReportBasis ?? "", rows: out };
+}
+
 type Inv = {
   doc_number: string; customer: string; txn_date: string; due_date?: string; terms?: string; class?: string;
   location?: string; item: string; description: string; amount: number; source_file?: string;
@@ -287,6 +336,8 @@ Deno.serve(async (req) => {
       case "connect_url": return json({ url: await connectUrl(user.id) });
       case "status": return json(await status());
       case "meta": return json(await meta());
+      case "invoice_list": return json(await invoiceList(body.from, body.to));
+      case "balance_sheet": return json(await balanceSheet(body.as_of));
       case "validate": return json(await sendInvoices(body.invoices, true, user.id));
       case "send": return json(await sendInvoices(body.invoices, false, user.id));
       default: return json({ error: "Unknown action." }, 400);
