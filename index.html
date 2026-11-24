@@ -133,6 +133,18 @@
   .co-desc{font-size:12.5px; color:var(--muted); margin-top:3px;}
   .co-arrow{margin-left:auto; color:var(--muted); font-size:20px; flex:none;}
   .co-card:hover .co-arrow{color:var(--series-1);}
+  .co-bank{margin-top:28px;}
+  .co-bank .co-row td{font-weight:600; background:var(--surface-2);}
+  .co-bank .co-sub td{font-weight:600; border-top:1px solid var(--border);}
+  .co-bank .co-total td{font-weight:700; border-top:2px solid var(--border);}
+  .co-bank tr.below td{background:var(--critical-bg); color:var(--critical);}
+  .co-bank .below-tag{display:inline-block; margin-left:8px; padding:1px 7px; border-radius:999px; font-family:"Public Sans",sans-serif; font-size:11px; font-weight:600; background:var(--critical); color:#fff;}
+  .co-bank .thr-input{width:120px; text-align:right; font:inherit; color:var(--text-primary); background:var(--surface-1); border:1px solid var(--border); border-radius:6px; padding:3px 6px;}
+  .co-bank .thr-input.saving{opacity:.6;}
+  .co-bank .thr-input.err{border-color:var(--critical);}
+  .bank-alert{margin-top:12px; padding:10px 14px; border-radius:8px; background:var(--critical-bg); color:var(--critical); font-size:13px;}
+  .bank-alert strong{font-weight:700;}
+  .bank-note{margin-top:8px; font-size:12px; color:var(--muted);}
   @media (max-width:640px){ .who-email{display:none;} }
 
   nav.section-nav{border-bottom:1px solid var(--border); background:var(--surface-1);}
@@ -882,6 +894,22 @@
             <div class="co-arrow" aria-hidden="true">&rarr;</div>
           </button>
         </div>
+        <section class="panel co-bank" id="co-bank-panel" hidden>
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Bank balances &mdash; all companies</div>
+              <div class="panel-sub" id="co-bank-sub"></div>
+            </div>
+          </div>
+          <div class="bank-alert" id="co-bank-alert" role="alert" hidden></div>
+          <div class="stat-strip" id="co-bank-stats"></div>
+          <div class="table-scroll" style="margin-top:12px;">
+            <table class="data-table" id="co-bank-table">
+              <thead><tr><th>Company</th><th>Account</th><th>Code</th><th class="num-col">Balance</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
       </div>
     </main>
   </div>
@@ -1627,6 +1655,11 @@
                   <label for="inv-file">QuickBooks Invoice List by Date (.xlsx)</label>
                   <input type="file" id="inv-file" accept=".xlsx,.xls,.csv">
                 </div>
+                <div class="crud-field">
+                  <label>&hellip;or get it straight from QuickBooks</label>
+                  <div><button type="button" class="btn-sm" id="inv-qbo-btn">Get invoices from QuickBooks</button></div>
+                  <div class="panel-sub" id="inv-qbo-status" style="margin-top:6px;"></div>
+                </div>
               </div>
 
               <div class="upl-row">
@@ -1824,6 +1857,16 @@
               </div>
               <div class="row-actions" style="margin-top:10px;">
                 <button type="button" class="btn-primary" id="bs-read-btn">Read balance sheet</button>
+              </div>
+              <div class="upl-row" style="margin-top:14px;">
+                <div class="crud-field">
+                  <label for="bs-qbo-asof">&hellip;or get it straight from QuickBooks &mdash; run it as of</label>
+                  <input type="date" id="bs-qbo-asof">
+                  <div class="panel-sub" style="margin-top:4px;">Leave blank to use the day after the Saturday above (the way it is run now). It still saves for the Saturday date.</div>
+                </div>
+                <div class="crud-field" style="align-self:flex-end;">
+                  <button type="button" class="btn-primary" id="bs-qbo-btn" style="width:auto;">Get balance sheet from QuickBooks</button>
+                </div>
               </div>
               <div class="login-msg err" id="bs-err" style="display:none; margin-top:12px;"></div>
               <div id="bs-warn" style="display:none; margin-top:12px; color:var(--text-secondary); font-size:13px;"></div>
@@ -3314,6 +3357,7 @@ window.addEventListener("unhandledrejection", function(e){
     dashView.hidden = (which !== "ws");
     allTrussView.hidden = (which !== "alltruss");
     if(which === null && location.hash) history.replaceState(null, "", location.pathname + location.search);
+    if(which === null) refreshChooserBank();
     window.scrollTo(0, 0);
   }
   function enterCompany(which){
@@ -4297,6 +4341,144 @@ window.addEventListener("unhandledrejection", function(e){
   }
 
   // ---------- home tab: bank balances ----------
+  // Daily QuickBooks register balances, published to bank-balances.json in this repo.
+  // When that file is at least as new as the latest weekly snapshot, Home shows it instead.
+  var dailyBank = null;
+  async function loadDailyBank(){
+    try{
+      var r = await fetch("bank-balances.json?ts=" + Date.now(), { cache: "no-store" });
+      if(!r.ok) return null;
+      var j = await r.json();
+      if(j && j.as_of && Array.isArray(j.companies)){
+        var wsCo = j.companies.filter(function(c){ return c && c.key === "ws"; })[0];
+        j.accounts = (wsCo && Array.isArray(wsCo.accounts)) ? wsCo.accounts : [];
+        dailyBank = j;
+      }else if(j && j.as_of && Array.isArray(j.accounts) && j.accounts.length){
+        j.companies = [{ key: "ws", name: "Workforce Strategies", accounts: j.accounts }];
+        dailyBank = j;
+      }
+    }catch(e){ dailyBank = null; }
+    return dailyBank;
+  }
+  // Company chooser: one table of bank balances across every company in bank-balances.json.
+  // Admins can set a low-balance threshold per account (Supabase table bank_thresholds);
+  // accounts under their threshold are highlighted and listed in an alert for admins.
+  // Email alerts to admins are sent by the bank-threshold-alerts Edge Function.
+  var bankThresholds = {};          // "companyKey|accountCode" -> number
+  var bankThresholdsError = null;
+  function thrKey(c, a){ return (c.key || c.name || "") + "|" + (a.code || a.name || ""); }
+  async function loadBankThresholds(){
+    bankThresholds = {}; bankThresholdsError = null;
+    if(!isAdmin()) return bankThresholds;
+    try{
+      var r = await sb.from("bank_thresholds").select("company_key,account_code,threshold");
+      if(r.error){ bankThresholdsError = r.error.message || String(r.error); return bankThresholds; }
+      (r.data || []).forEach(function(t){ bankThresholds[t.company_key + "|" + t.account_code] = Number(t.threshold); });
+    }catch(e){ bankThresholdsError = String(e); }
+    return bankThresholds;
+  }
+  async function saveBankThreshold(companyKey, accountCode, value, input){
+    input.classList.add("saving"); input.classList.remove("err");
+    try{
+      var r;
+      if(value === null){
+        r = await sb.from("bank_thresholds").delete().eq("company_key", companyKey).eq("account_code", accountCode);
+        if(!r.error) delete bankThresholds[companyKey + "|" + accountCode];
+      }else{
+        r = await sb.from("bank_thresholds").upsert({ company_key: companyKey, account_code: accountCode, threshold: value, updated_at: new Date().toISOString() }, { onConflict: "company_key,account_code" });
+        if(!r.error) bankThresholds[companyKey + "|" + accountCode] = value;
+      }
+      if(r.error) throw r.error;
+      renderChooserBankBalances();
+    }catch(e){
+      input.classList.remove("saving"); input.classList.add("err");
+      input.title = "Couldn't save: " + (e && e.message ? e.message : e);
+    }
+  }
+  async function refreshChooserBank(){
+    await Promise.all([ loadDailyBank(), loadBankThresholds() ]);
+    renderChooserBankBalances();
+  }
+  function renderChooserBankBalances(){
+    var panel = document.getElementById("co-bank-panel");
+    var sub = document.getElementById("co-bank-sub");
+    var stats = document.getElementById("co-bank-stats");
+    var alertBox = document.getElementById("co-bank-alert");
+    var table = document.getElementById("co-bank-table");
+    var tbody = table ? table.querySelector("tbody") : null;
+    if(!panel || !sub || !stats || !tbody) return;
+    var cos = (dailyBank && Array.isArray(dailyBank.companies)) ? dailyBank.companies : [];
+    cos = cos.filter(function(c){ return c && Array.isArray(c.accounts) && c.accounts.length; });
+    if(!cos.length){ panel.hidden = true; return; }
+    var admin = isAdmin();
+    var cols = admin ? 5 : 4;
+    table.querySelector("thead").innerHTML = '<tr><th>Company</th><th>Account</th><th>Code</th><th class="num-col">Balance</th>' +
+      (admin ? '<th class="num-col">Alert below</th>' : '') + '</tr>';
+    stats.innerHTML = ""; tbody.innerHTML = "";
+    sub.textContent = "As of " + fmtDateFull(dailyBank.as_of) + " · QuickBooks register balances (daily)";
+    var grand = 0, count = 0, below = [];
+    cos.forEach(function(c){
+      var accts = c.accounts.slice().sort(function(a, b){ return (Number(b.balance)||0) - (Number(a.balance)||0); });
+      var coTotal = accts.reduce(function(sum, a){ return sum + (Number(a.balance) || 0); }, 0);
+      grand += coTotal; count += accts.length;
+      accts.forEach(function(a, i){
+        var bal = Number(a.balance) || 0;
+        var thr = admin ? bankThresholds[thrKey(c, a)] : undefined;
+        var isBelow = admin && typeof thr === "number" && isFinite(thr) && bal < thr;
+        if(isBelow) below.push({ company: c.name, account: a.name, code: a.code, balance: bal, threshold: thr });
+        var tr = document.createElement("tr");
+        if(isBelow) tr.className = "below";
+        tr.innerHTML =
+          '<td>'+(i === 0 ? '<strong>'+escHtml(c.name || "—")+'</strong>' : '')+'</td>'+
+          '<td>'+escHtml(a.name || "—")+(isBelow ? '<span class="below-tag">Below threshold</span>' : '')+'</td>'+
+          '<td>'+escHtml(a.code || "—")+'</td>'+
+          '<td class="num-col num">'+fmtUSD(bal)+'</td>'+
+          (admin ? '<td class="num-col"></td>' : '');
+        if(admin){
+          var inp = document.createElement("input");
+          inp.type = "number"; inp.step = "0.01"; inp.min = "0"; inp.className = "thr-input";
+          inp.placeholder = "None";
+          inp.setAttribute("aria-label", "Alert threshold for " + (c.name || "") + " " + (a.name || ""));
+          if(typeof thr === "number" && isFinite(thr)) inp.value = String(thr);
+          (function(companyKey, accountCode){
+            inp.addEventListener("change", function(){
+              var raw = inp.value.trim();
+              var v = raw === "" ? null : Number(raw);
+              if(v !== null && (!isFinite(v) || v < 0)){ inp.classList.add("err"); inp.title = "Enter a dollar amount, or leave blank for no alert"; return; }
+              saveBankThreshold(companyKey, accountCode, v, inp);
+            });
+          })(c.key || c.name || "", a.code || a.name || "");
+          tr.lastChild.appendChild(inp);
+        }
+        tbody.appendChild(tr);
+      });
+      var st = document.createElement("tr"); st.className = "co-sub";
+      st.innerHTML = '<td></td><td colspan="2">Total '+escHtml(c.name || "")+'</td><td class="num-col num">'+fmtUSD(coTotal)+'</td>'+(admin ? '<td></td>' : '');
+      tbody.appendChild(st);
+    });
+    var gt = document.createElement("tr"); gt.className = "co-total";
+    gt.innerHTML = '<td colspan="3">Total all companies</td><td class="num-col num">'+fmtUSD(grand)+'</td>'+(admin ? '<td></td>' : '');
+    tbody.appendChild(gt);
+    stats.appendChild(kpiTile("Total cash", fmtUSD(grand), null));
+    cos.forEach(function(c){
+      var t = c.accounts.reduce(function(sum, a){ return sum + (Number(a.balance) || 0); }, 0);
+      stats.appendChild(kpiTile(c.name, fmtUSD(t), null));
+    });
+    stats.appendChild(kpiTile("Accounts", String(count), null));
+    if(alertBox){
+      if(admin && below.length){
+        alertBox.innerHTML = '<strong>' + below.length + (below.length === 1 ? ' account is' : ' accounts are') + ' below the alert threshold:</strong> ' +
+          below.map(function(b){ return escHtml(b.company + " – " + b.account) + ' (' + fmtUSD(b.balance) + ' vs ' + fmtUSD(b.threshold) + ')'; }).join('; ');
+        alertBox.hidden = false;
+      }else if(admin && bankThresholdsError){
+        alertBox.textContent = "Alert thresholds couldn't be loaded (" + bankThresholdsError + "). If the bank_thresholds table hasn't been created yet, run supabase/bank_thresholds.sql in Supabase.";
+        alertBox.hidden = false;
+      }else{
+        alertBox.hidden = true;
+      }
+    }
+    panel.hidden = false;
+  }
   function renderHomeBankBalances(){
     var sub = document.getElementById("home-bank-sub");
     var stats = document.getElementById("home-bank-stats");
@@ -4304,6 +4486,29 @@ window.addEventListener("unhandledrejection", function(e){
     if(!sub || !stats || !tbody) return;
     stats.innerHTML = "";
     tbody.innerHTML = "";
+
+    var latestSnapDate = null;
+    if(financeRows && financeRows.length){
+      for(var di = financeRows.length - 1; di >= 0; di--){
+        var dc = financeRows[di];
+        if((Array.isArray(dc.bank_accounts) && dc.bank_accounts.length) || (dc.cash !== null && dc.cash !== undefined)){ latestSnapDate = dc.date; break; }
+      }
+    }
+    if(dailyBank && dailyBank.accounts.length && (!latestSnapDate || String(dailyBank.as_of) >= String(latestSnapDate).slice(0,10))){
+      sub.textContent = "As of " + fmtDateFull(dailyBank.as_of) + " \u00b7 QuickBooks register balances (daily)";
+      var dTotal = dailyBank.accounts.reduce(function(sum, a){ return sum + (Number(a.balance) || 0); }, 0);
+      stats.appendChild(kpiTile("Total cash", fmtUSD(dTotal), null));
+      stats.appendChild(kpiTile("Accounts", String(dailyBank.accounts.length), null));
+      dailyBank.accounts.slice().sort(function(a, b){ return (Number(b.balance)||0) - (Number(a.balance)||0); }).forEach(function(a){
+        var tr = document.createElement("tr");
+        tr.innerHTML =
+          '<td>'+escHtml(a.name || "\u2014")+'</td>'+
+          '<td>'+escHtml(a.code || "\u2014")+'</td>'+
+          '<td class="num-col num">'+fmtUSD(Number(a.balance) || 0)+'</td>';
+        tbody.appendChild(tr);
+      });
+      return;
+    }
 
     if(!financeRows || !financeRows.length){
       sub.textContent = "No finance snapshots found yet.";
@@ -4490,7 +4695,7 @@ window.addEventListener("unhandledrejection", function(e){
   async function loadDashboard(){
     if(loaded) return;
     try{
-      var loadResults = await Promise.all([ fetchFinRows(), loadOfficeMeta() ]);
+      var loadResults = await Promise.all([ fetchFinRows(), loadOfficeMeta(), loadDailyBank() ]);
       financeRows = loadResults[0];
       if(financeRows.length) loaded = true;
     }catch(err){
@@ -6570,11 +6775,17 @@ window.addEventListener("unhandledrejection", function(e){
 
       // 3b) QuickBooks Invoice List by Date -> Sales for every location that has no PDF invoice this week
       var invListFile = document.getElementById("inv-file").files[0];
-      if(invListFile){
+      var fromQbo = !invListFile && uplQboInv && uplQboInvWeek === checkDate;   // pulled straight from QuickBooks for this week
+      if(invListFile || fromQbo){
         try{
-          var ilWb = XLSX.read(await invListFile.arrayBuffer(), { type: "array", cellDates: true });
-          var ilRows = XLSX.utils.sheet_to_json(ilWb.Sheets[ilWb.SheetNames[0]], { header: 1, raw: true, defval: null });
-          var ilParsed = parseInvoiceListRows(ilRows).rows;
+          var ilParsed;
+          if(invListFile){
+            var ilWb = XLSX.read(await invListFile.arrayBuffer(), { type: "array", cellDates: true });
+            var ilRows = XLSX.utils.sheet_to_json(ilWb.Sheets[ilWb.SheetNames[0]], { header: 1, raw: true, defval: null });
+            ilParsed = parseInvoiceListRows(ilRows).rows;
+          } else {
+            ilParsed = uplQboInv.slice();
+          }
           var winFrom = isoAddDays(checkDate, -12), winTo = isoAddDays(checkDate, -5), seenIl = {}, outside = 0;
           var salesByKey = {}, unmatchedIl = {}, usedInv = 0, usedAmt = 0;
           ilParsed.forEach(function(x){
@@ -7366,19 +7577,43 @@ window.addEventListener("unhandledrejection", function(e){
     if(ap === null) warnings.push("Couldn't find Accounts Payable (20000) \u2014 AP will be left as it is.");
     return { date: bsFindDate(rows), cash: Math.round(cash*100)/100, ar: ar, ap: ap, accounts: accounts, warnings: warnings };
   }
-  async function bsRead(){
+  var BS_MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  async function bsFromQbo(){
+    var errEl = document.getElementById("bs-err"), btn = document.getElementById("bs-qbo-btn");
+    errEl.style.display = "none";
+    try{
+      var sat = document.getElementById("bs-date").value || (document.getElementById("upl-week-input").value ? isoAddDays(document.getElementById("upl-week-input").value, -6) : "");
+      var asOf = document.getElementById("bs-qbo-asof").value || (sat ? isoAddDays(sat, 1) : "");
+      if(!asOf) throw new Error("Pick the Saturday accrual date (or the as-of date) first.");
+      if(!document.getElementById("bs-date").value && sat) document.getElementById("bs-date").value = sat;
+      btn.disabled = true; btn.textContent = "Getting it…";
+      var res = await qbiCall("balance_sheet", { as_of: asOf });
+      var p = asOf.split("-");
+      var rows = [["Balance Sheet"], ["As of " + BS_MONTH_NAMES[+p[1] - 1] + " " + (+p[2]) + ", " + p[0]]];
+      (res.rows || []).forEach(function(r){ rows.push([r[0], r[1]]); });
+      await bsRead(rows);
+    }catch(err){
+      errEl.textContent = (err && err.message) || "Couldn't get the balance sheet from QuickBooks.";
+      errEl.style.display = "block";
+    }finally{ btn.disabled = false; btn.textContent = "Get balance sheet from QuickBooks"; }
+  }
+  async function bsRead(preRows){
     var errEl = document.getElementById("bs-err"), warnEl = document.getElementById("bs-warn");
     errEl.style.display = "none"; warnEl.style.display = "none"; warnEl.innerHTML = "";
     document.getElementById("bs-preview").hidden = true;
     document.getElementById("bs-status").textContent = "";
     bsParsed = null;
     try{
-      var f = document.getElementById("bs-file").files[0];
-      if(!f) throw new Error("Choose the Balance Sheet file first.");
-      var buf = await f.arrayBuffer();
-      var wb = XLSX.read(buf, { type: "array", cellDates: true });
-      var ws = wb.Sheets[wb.SheetNames[0]];
-      var rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
+      var rows;
+      if(Array.isArray(preRows)){ rows = preRows; }   // already pulled from QuickBooks
+      else {
+        var f = document.getElementById("bs-file").files[0];
+        if(!f) throw new Error("Choose the Balance Sheet file first (or use Get balance sheet from QuickBooks).");
+        var buf = await f.arrayBuffer();
+        var wb = XLSX.read(buf, { type: "array", cellDates: true });
+        var ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
+      }
       var res = parseBalanceSheetRows(rows);
       var dateEl = document.getElementById("bs-date");
       var dateNote = null;
@@ -8559,6 +8794,26 @@ window.addEventListener("unhandledrejection", function(e){
   // One review + one update for the whole weekly page
   // ====================================================================
   var uplReviewed = false, uplBusy = false;
+  var uplQboInv = null, uplQboInvWeek = "";   // invoices pulled from QuickBooks for the week being updated
+  async function uplGetQboInvoices(){
+    var st = document.getElementById("inv-qbo-status"), btn = document.getElementById("inv-qbo-btn");
+    var week = document.getElementById("upl-week-input").value;
+    if(!week){ st.textContent = "Set the week ending (check date) first."; st.style.color = "var(--critical)"; return; }
+    var from = isoAddDays(week, -12), to = isoAddDays(week, -5);
+    btn.disabled = true; st.style.color = "var(--text-secondary)"; st.textContent = "Getting invoices dated " + from + " to " + to + "…";
+    try{
+      var res = await qbiCall("invoice_list", { from: from, to: to });
+      var rows = (res.invoices || []).filter(function(x){ return x.num && x.customer && x.date && x.amount; }).map(function(x){
+        return { date: x.date, num: String(x.num), qbName: x.customer, amount: round2(x.amount), due: x.due || null, issuedAs: null, billedBy: x.location || null };
+      });
+      uplQboInv = rows; uplQboInvWeek = week;
+      var tot = 0; rows.forEach(function(x){ tot += x.amount; });
+      st.textContent = "Got " + rows.length + " invoice(s) from QuickBooks dated " + from + " to " + to + ", totalling " + fmtUSD(round2(tot)) + ". They'll be used instead of the file.";
+      st.style.color = "var(--good)";
+      uplInvalidate();
+    }catch(e){ uplQboInv = null; st.textContent = e.message; st.style.color = "var(--critical)"; }
+    finally{ btn.disabled = false; }
+  }
   function uplMissingFiles(){
     var miss = [];
     function none(id){ var el = document.getElementById(id); return !el || !el.files || !el.files.length; }
@@ -8566,7 +8821,7 @@ window.addEventListener("unhandledrejection", function(e){
     if(none("upl-payroll-file")) miss.push("payroll report");
     if(none("upl-wc-file")) miss.push("WC/state report");
     if(none("upl-tower-files")) miss.push("invoice PDF(s)");
-    if(none("inv-file")) miss.push("invoice list");
+    if(none("inv-file") && !(uplQboInv && uplQboInvWeek === document.getElementById("upl-week-input").value)) miss.push("invoice list (file, or Get invoices from QuickBooks)");
     return miss;
   }
   function uplRefreshBar(){
@@ -8691,7 +8946,7 @@ window.addEventListener("unhandledrejection", function(e){
   }
 
   // ---- Invoices -> QuickBooks page ----
-  var qbiRows = [], qbiMap = {}, qbiMapLoaded = false, qbiInited = false, qbiStatusInfo = null, qbiMeta = null, qbiConfirmTimer = null, qbiBusy = false;
+  var qbiListsLoading = false, qbiRows = [], qbiMap = {}, qbiMapLoaded = false, qbiInited = false, qbiStatusInfo = null, qbiMeta = null, qbiConfirmTimer = null, qbiBusy = false;
 
   async function qbiCall(action, extra){
     var body = { action: action };
@@ -8727,6 +8982,7 @@ window.addEventListener("unhandledrejection", function(e){
         var mode = s.env === "production" ? "LIVE QuickBooks" : "SANDBOX (test) QuickBooks";
         txt.innerHTML = 'Connected to <strong>' + escHtml(s.company || s.realm_id) + '</strong> &mdash; <span style="font-weight:600; color:' + (s.env === "production" ? "var(--good)" : "var(--warn, #b7791f)") + ';">' + mode + '</span>.';
         cBtn.textContent = "Reconnect"; cBtn.hidden = false; lBtn.hidden = false;
+        if(!qbiMeta && !qbiListsLoading){ qbiListsLoading = true; qbiLoadLists().finally(function(){ qbiListsLoading = false; }); }
       } else {
         txt.textContent = s.configured ? "QuickBooks isn't connected yet." : "The QuickBooks function needs its keys set (see the setup steps).";
         cBtn.textContent = "Connect to QuickBooks"; cBtn.hidden = !s.configured;
@@ -8738,13 +8994,13 @@ window.addEventListener("unhandledrejection", function(e){
     }
   }
   async function qbiLoadLists(){
-    var btn = document.getElementById("qbi-lists-btn"); btn.disabled = true; btn.textContent = "Loading…";
+    var btn = document.getElementById("qbi-lists-btn"); btn.disabled = true; btn.textContent = "Loading QuickBooks lists…";
     try{
-      qbiMeta = await qbiCall("meta");
+      qbiMeta = await qbiCall("meta"); qbiOptCache = {};
       function fill(id, arr){ document.getElementById(id).innerHTML = (arr || []).map(function(v){ return '<option value="' + escHtml(v) + '"></option>'; }).join(""); }
       fill("qbi-dl-customers", qbiMeta.customers); fill("qbi-dl-classes", qbiMeta.classes); fill("qbi-dl-terms", qbiMeta.terms);
       fill("qbi-dl-items", qbiMeta.items); fill("qbi-dl-locations", qbiMeta.locations);
-      btn.textContent = "Lists loaded (" + (qbiMeta.customers || []).length + " customers)";
+      btn.textContent = "Refresh QuickBooks lists (" + (qbiMeta.customers || []).length + " customers)";
       qbiApplySuggestions(); qbiRender();
     }catch(e){ btn.textContent = "Load QuickBooks lists"; qbiShowErr(e.message); }
     finally{ btn.disabled = false; }
@@ -8843,6 +9099,11 @@ window.addEventListener("unhandledrejection", function(e){
     box.innerHTML = '<div class="upl-warn-box"><div class="upl-warn-title">' + notes.length + ' thing(s) to check</div><ul>' + notes.map(function(w){ return "<li>" + escHtml(w) + "</li>"; }).join("") + "</ul></div>";
   }
 
+  var qbiOptCache = {};
+  function qbiOptHtml(key){
+    if(!qbiOptCache[key]) qbiOptCache[key] = (qbiMeta[key] || []).map(function(v){ return '<option value="' + escHtml(v) + '">' + escHtml(v) + '</option>'; }).join("");
+    return qbiOptCache[key];
+  }
   function qbiRender(){
     var row = document.getElementById("qbi-review-row"), tb = document.querySelector("#qbi-table tbody");
     row.hidden = !qbiRows.length;
@@ -8851,6 +9112,13 @@ window.addEventListener("unhandledrejection", function(e){
       var tr = document.createElement("tr");
       var dis = (r.skip || r.done) ? " disabled" : "";
       function inp(field, val, list, w){ return '<input type="text" data-i="' + idx + '" data-f="' + field + '" value="' + escHtml(val || "") + '"' + (list ? ' list="' + list + '"' : "") + ' style="width:' + w + 'px;"' + dis + '>'; }
+      // a real dropdown of what's in QuickBooks once the lists are loaded; typing still works until then
+      function sel(field, val, key, w){
+        var list = qbiMeta && qbiMeta[key];
+        if(!list || !list.length) return inp(field, val, "", w);
+        var extra = (val && list.indexOf(val) === -1) ? '<option value="' + escHtml(val) + '">' + escHtml(val) + ' (not in QuickBooks)</option>' : "";
+        return '<select data-i="' + idx + '" data-f="' + field + '" data-val="' + escHtml(val || "") + '" style="width:' + w + 'px;"' + dis + '><option value="">— pick —</option>' + extra + qbiOptHtml(key) + '</select>';
+      }
       var color = r.statusKind === "ok" ? "var(--good)" : r.statusKind === "err" ? "var(--critical)" : "var(--text-secondary)";
       var statusTxt = r.status || (r.mapped ? "Mapped" : (r.suggested ? "Suggested customer — check it, then tick Send" : (r.customer ? "" : "Pick a customer, then tick Send")));
       tr.innerHTML = '<td><input type="checkbox" data-i="' + idx + '" data-f="send"' + (r.send ? " checked" : "") + dis + '></td>' +
@@ -8858,13 +9126,14 @@ window.addEventListener("unhandledrejection", function(e){
         '<td class="num-col num strong">' + fmtUSD(r.amount) + '</td>' +
         '<td style="color:' + color + '; min-width:170px; max-width:230px;">' + escHtml(statusTxt) + '</td>' +
         '<td>' + inp("invoiceNo", r.invoiceNo, "", 70) + '</td>' +
-        '<td>' + inp("customer", r.customer, "qbi-dl-customers", 250) + '</td>' +
-        '<td>' + inp("terms", r.terms, "qbi-dl-terms", 70) + '</td>' +
-        '<td>' + inp("cls", r.cls, "qbi-dl-classes", 90) + '</td>' +
-        '<td>' + inp("item", r.item, "qbi-dl-items", 120) + '</td>' +
+        '<td>' + sel("customer", r.customer, "customers", 260) + '</td>' +
+        '<td>' + sel("terms", r.terms, "terms", 90) + '</td>' +
+        '<td>' + sel("cls", r.cls, "classes", 110) + '</td>' +
+        '<td>' + sel("item", r.item, "items", 140) + '</td>' +
         '<td>' + inp("descName", r.descName || (r.customer ? r.customer.split(":").pop() : ""), "", 190) + '</td>';
       tb.appendChild(tr);
     });
+    Array.prototype.forEach.call(tb.querySelectorAll("select[data-val]"), function(se){ se.value = se.getAttribute("data-val"); });
     qbiSummary();
   }
   function qbiNotReady(){
@@ -9020,7 +9289,10 @@ window.addEventListener("unhandledrejection", function(e){
     weekInput.addEventListener("change", uplLoadTyped);
     uplLoadTyped();
     document.getElementById("upl-all-btn").addEventListener("click", uplUpdateAll);
-    document.getElementById("bs-read-btn").addEventListener("click", bsRead);
+    document.getElementById("bs-read-btn").addEventListener("click", function(){ bsRead(); });
+    document.getElementById("bs-qbo-btn").addEventListener("click", bsFromQbo);
+    document.getElementById("inv-qbo-btn").addEventListener("click", uplGetQboInvoices);
+    weekInput.addEventListener("change", function(){ uplQboInv = null; var st = document.getElementById("inv-qbo-status"); if(st) st.textContent = ""; });
     ["upl-week-input","upl-payroll-file","upl-wc-file","upl-tower-files","inv-file","inv-from","plc-up-end","upl-man-fsg-km","upl-man-fsg-st","upl-man-fsg-cc","upl-man-nov","upl-man-gp-km","upl-man-gp-st"].forEach(function(id){
       var el = document.getElementById(id); if(el) el.addEventListener("change", uplInvalidate);
     });
