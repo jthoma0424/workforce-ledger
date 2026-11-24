@@ -8701,9 +8701,11 @@ window.addEventListener("unhandledrejection", function(e){
       new Promise(function(_, rej){ setTimeout(function(){ rej(new Error("QuickBooks didn't answer within a minute. Try again; if it keeps happening, check the qbo function's logs in Supabase.")); }, 60000); })
     ]);
     if(res.error){
-      var msg = res.error.message || "QuickBooks request failed.";
-      try{ if(res.error.context && res.error.context.json){ var j = await res.error.context.json(); if(j && j.error) msg = j.error; } }catch(e){}
-      if(/not found|404|Failed to send a request/i.test(msg) && !/QuickBooks/i.test(msg)) msg = "The QuickBooks function isn't set up yet (see the setup steps), or it can't be reached.";
+      var msg = res.error.message || "QuickBooks request failed.", code = res.error.context && res.error.context.status;
+      try{ if(res.error.context && res.error.context.json){ var j = await res.error.context.json(); if(j && j.error) msg = j.error; else if(j && j.message) msg = j.message; } }catch(e){}
+      if(code === 404) msg = "The qbo function wasn't found (404). It must be deployed with the exact name qbo.";
+      else if(code === 401 && /JWT|authorization/i.test(msg)) msg = "Supabase rejected the request (" + msg + "). Turn Verify JWT off for the qbo function, or sign out and back in.";
+      else if(!code) msg = "Couldn't reach the qbo function (" + msg + "). Check that it is deployed, named qbo, and that the page isn't blocked.";
       throw new Error(msg);
     }
     if(res.data && res.data.error) throw new Error(res.data.error);
