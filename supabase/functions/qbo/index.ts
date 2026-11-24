@@ -27,7 +27,7 @@ const MINOR = "75";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-api-version, x-region, accept, accept-profile, content-profile, prefer",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 const json = (b: unknown, status = 200) =>
@@ -271,7 +271,11 @@ async function sendInvoices(invoices: Inv[], dryRun: boolean, userId: string) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  if (req.method === "OPTIONS") {
+    // answer the browser's pre-check, allowing whatever headers it says it will send
+    const asked = req.headers.get("Access-Control-Request-Headers");
+    return new Response("ok", { headers: { ...CORS, ...(asked ? { "Access-Control-Allow-Headers": asked } : {}) } });
+  }
   try {
     const url = new URL(req.url);
     // Intuit sends the browser back here (GET) after the person approves the connection.
