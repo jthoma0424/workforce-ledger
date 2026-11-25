@@ -1935,7 +1935,7 @@
               <div class="table-scroll">
                 <table class="data-table" id="qbi-table">
                   <thead><tr>
-                    <th>Send</th><th>PDF</th><th class="num-col">Amount</th><th>Status</th><th>Invoice #</th><th>QuickBooks customer</th><th>Terms</th><th>Class</th><th>Item</th><th>Description</th>
+                    <th>Send</th><th>PDF</th><th class="num-col">Amount</th><th>Status</th><th>Invoice #</th><th>QuickBooks customer</th><th>Terms</th><th>Class</th><th>Location</th><th>Item</th><th>Description</th><th>Recognize by (text on the PDF)</th>
                   </tr></thead>
                   <tbody></tbody>
                 </table>
@@ -9016,6 +9016,7 @@ window.addEventListener("unhandledrejection", function(e){
     if(!number){ var n2 = flat.match(/PO Box 156\s+([A-Za-z0-9\-]{1,12})\s+Locust/i); if(n2 && !/^\d{5}$/.test(n2[1])) number = n2[1]; }
     var dm = flat.match(/Invoice\s+Date\s*:?\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
     return {
+      text: flat.toLowerCase(),
       fileName: fileName, key: qbiKey(fileName), amount: amount, invoiceNumber: number,
       periodStart: perStart, periodEnd: perEnd, invoiceDate: dm ? qbiIsoFromUs(dm[1]) : "",
       weekEnd: qbiWeekEndFromName(fileName) || perEnd,
@@ -9139,6 +9140,25 @@ window.addEventListener("unhandledrejection", function(e){
     return nm + " - payroll period " + qbUsDate(r.periodStart || r.date) + " - " + qbUsDate(r.periodEnd || r.date);
   }
 
+  // Clues: words or phrases printed on a customer's PDF (a site name, a job #, an address...) that identify it.
+  // Saved with the customer's rule, so a PDF with a different file name is still recognized next week.
+  function qbiClues(str){
+    return String(str || "").split(/[,;\n]/).map(function(x){ return x.replace(/\s+/g, " ").trim().toLowerCase(); }).filter(function(x){ return x.length >= 3; });
+  }
+  function qbiFindByClue(info){
+    var hay = ((info.text || "") + " " + String(info.fileName || "").toLowerCase().replace(/\.pdf$/, "")).replace(/\s+/g, " ");
+    var best = null, bestClue = "", bestLen = 0, tie = false;
+    Object.keys(qbiMap).forEach(function(k){
+      var m = qbiMap[k];
+      qbiClues(m.match_text).forEach(function(c){
+        if(hay.indexOf(c) === -1) return;
+        if(c.length > bestLen){ best = m; bestClue = c; bestLen = c.length; tie = false; }
+        else if(c.length === bestLen && best && best.match_key !== m.match_key) tie = true;
+      });
+    });
+    return (best && !tie) ? { map: best, clue: bestClue } : null;
+  }
+
   async function qbiHandleFiles(files){
     qbiShowErr(""); qbiSetStatus("");
     var notes = [], rows = [];
@@ -9147,7 +9167,8 @@ window.addEventListener("unhandledrejection", function(e){
       var f = files[i];
       try{
         var info = await qbiReadPdf(f);
-        var m = qbiMap[info.key] || null;
+        var m = qbiMap[info.key] || null, byClue = null;
+        if(!m){ byClue = qbiFindByClue(info); if(byClue) m = byClue.map; }
         var r = {
           id: "r" + i, file: f.name, key: info.key, info: info, invoiceNo: info.invoiceNumber, amount: info.amount,
           periodStart: info.periodStart, periodEnd: info.periodEnd, weekEnd: info.weekEnd,
@@ -9155,7 +9176,8 @@ window.addEventListener("unhandledrejection", function(e){
           customer: m ? m.qbo_customer : "", terms: m ? (m.terms || "Net 10") : "Net 10", cls: m ? (m.class || "") : "",
           location: m ? (m.location || "Solutions 4 Labor LLC") : "Solutions 4 Labor LLC", item: m ? (m.item || "Staffing Labor") : "Staffing Labor",
           descName: m ? (m.description_name || "") : "",
-          send: !!m, skip: false, replaced: false, status: "", statusKind: "", done: false
+          clue: m ? (m.match_text || "") : "", mapKey: m ? m.match_key : info.key,
+          send: !!m, skip: false, replaced: false, status: byClue ? "Recognized by \u201c" + byClue.clue + "\u201d \u2014 mapped" : "", statusKind: "", done: false
         };
         if(info.isFrontier){ r.skip = true; r.send = false; r.status = "Frontier (FSG) invoice — handled in the Weekly update, not here."; r.statusKind = "warn"; }
         rows.push(r);
@@ -9220,8 +9242,10 @@ window.addEventListener("unhandledrejection", function(e){
         '<td>' + sel("customer", r.customer, "customers", 260) + '</td>' +
         '<td>' + sel("terms", r.terms, "terms", 90) + '</td>' +
         '<td>' + sel("cls", r.cls, "classes", 110) + '</td>' +
+        '<td>' + sel("location", r.location, "locations", 170) + '</td>' +
         '<td>' + sel("item", r.item, "items", 140) + '</td>' +
-        '<td>' + inp("descName", r.descName || (r.customer ? r.customer.split(":").pop() : ""), "", 190) + '</td>';
+        '<td>' + inp("descName", r.descName || (r.customer ? r.customer.split(":").pop() : ""), "", 190) + '</td>' +
+        '<td style="white-space:nowrap;"><input type="text" data-i="' + idx + '" data-f="clue" value="' + escHtml(r.clue || "") + '" placeholder="e.g. site name, job #, address" title="Words printed on this customer\u2019s PDF, separated by commas. Next time, any PDF containing one of them is matched to this customer, class and location." style="width:210px;"' + dis + '> <button type="button" class="btn-sm" data-peek="' + idx + '" title="Show the text the site read from this PDF, to pick a clue from">Text</button></td>';
       tb.appendChild(tr);
     });
     Array.prototype.forEach.call(tb.querySelectorAll("select[data-val]"), function(se){ se.value = se.getAttribute("data-val"); });
@@ -9293,13 +9317,18 @@ window.addEventListener("unhandledrejection", function(e){
       var c = qbiApplyResults(sel, res);
       if(document.getElementById("qbi-save-map").checked){
         var saves = sel.filter(function(r){ return r.done && r.customer; }).map(function(r){
-          return { match_key: r.key, qbo_customer: r.customer, terms: r.terms || "Net 10", class: r.cls || null, location: r.location || "Solutions 4 Labor LLC",
-            item: r.item || "Staffing Labor", description_name: r.descName || r.customer.split(":").pop(), updated_at: new Date().toISOString() };
+          return { match_key: r.mapKey || r.key, qbo_customer: r.customer, terms: r.terms || "Net 10", class: r.cls || null, location: r.location || "Solutions 4 Labor LLC",
+            item: r.item || "Staffing Labor", description_name: r.descName || r.customer.split(":").pop(), match_text: (r.clue || "").trim() || null, updated_at: new Date().toISOString() };
         });
         if(saves.length){
           var sv = await sb.from("qbo_invoice_map").upsert(saves, { onConflict: "match_key" });
-          if(sv.error) qbiShowErr("Invoices were created, but saving the customer mappings failed: " + sv.error.message);
-          else saves.forEach(function(s){ qbiMap[s.match_key] = s; });
+          if(sv.error && /match_text/i.test(sv.error.message || "")){
+            // the clues column isn't in the database yet: save everything else and say how to add it
+            sv = await sb.from("qbo_invoice_map").upsert(saves.map(function(x){ var y = Object.assign({}, x); delete y.match_text; return y; }), { onConflict: "match_key" });
+            if(!sv.error) qbiShowErr("Invoices were created and the customers remembered, but the recognition clues weren't saved. Run qbo_invoice_clues.sql in Supabase to turn clues on.");
+          }
+          else if(sv.error) qbiShowErr("Invoices were created, but saving the customer mappings failed: " + sv.error.message);
+          if(!sv.error) saves.forEach(function(x){ qbiMap[x.match_key] = x; });
         }
       }
       qbiSetStatus(c.ok + " created, " + c.bad + " not created.", c.bad ? "var(--critical)" : "var(--good)");
@@ -9354,11 +9383,17 @@ window.addEventListener("unhandledrejection", function(e){
       qbiClearConfirm();
       if(f === "send") r.send = t.checked; else r[f] = t.value;
       if(f === "customer"){ r.mapped = false; r.suggested = false; if(t.value.trim() && !r.skip && !r.done && !r.replaced) r.send = true; }
-      if(f !== "send"){ r.status = ""; r.statusKind = ""; }
+      if(f !== "send" && f !== "clue"){ r.status = ""; r.statusKind = ""; }
       if(f === "send") qbiSummary(); else qbiSummary();
     }
     tbl.addEventListener("change", function(e){ onEdit(e); if(e.target.getAttribute("data-f") === "customer" || e.target.getAttribute("data-f") === "send") qbiRender(); });
     tbl.addEventListener("input", onEdit);
+    tbl.addEventListener("click", function(e){
+      var b = e.target.closest && e.target.closest("button[data-peek]"); if(!b) return;
+      var r = qbiRows[Number(b.getAttribute("data-peek"))]; if(!r) return;
+      var box = document.getElementById("qbi-notes"); box.style.display = "block";
+      box.innerHTML = '<div class="upl-warn-box"><div class="upl-warn-title">Text read from ' + escHtml(r.file) + ' (copy a word or phrase that is unique to this customer into \u201cRecognize by\u201d)</div><div style="font-size:12px; line-height:1.5; max-height:150px; overflow:auto; margin-top:6px;">' + escHtml(String((r.info && r.info.text) || "").slice(0, 1500)) + '</div></div>';
+    });
     // the shared page-level week-ending field could pre-fill later; nothing else to wire
   }
 
