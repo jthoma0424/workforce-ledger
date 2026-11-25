@@ -1606,10 +1606,12 @@
                   </div>
                   <div class="row-actions">
                     <select class="filter" id="bills-week-select"></select>
+                    <button type="button" class="btn-sm" id="bills-qbo-btn">Send bills to QuickBooks</button>
                     <button type="button" class="btn-sm" id="bills-download-btn">Download bills CSV</button>
                   </div>
                 </div>
-                <div class="panel-sub" id="bills-preview-totals" style="margin:8px 0 10px;"></div>
+                <div class="panel-sub" id="bills-preview-totals" style="margin:8px 0 6px;"></div>
+                <div class="panel-sub" id="bills-qbo-status" style="margin:0 0 10px;"></div>
                 <div class="table-scroll">
                   <table class="data-table" id="bills-preview-table">
                     <thead><tr><th>Vendor</th><th>Category/Account</th><th>Description</th><th>Class</th><th class="num-col">Amount</th></tr></thead>
@@ -1655,11 +1657,11 @@
 
               <div class="upl-row">
                 <div class="crud-field">
-                  <label for="inv-file">QuickBooks Invoice List by Date (.xlsx)</label>
+                  <label for="inv-file">QuickBooks Invoice List by Date (.xlsx) &mdash; optional</label>
                   <input type="file" id="inv-file" accept=".xlsx,.xls,.csv">
                 </div>
                 <div class="crud-field">
-                  <label>&hellip;or get it straight from QuickBooks</label>
+                  <label>Without a file, this week&rsquo;s invoices come straight from QuickBooks when you click Review</label>
                   <div><button type="button" class="btn-sm" id="inv-qbo-btn">Get invoices from QuickBooks</button></div>
                   <div class="panel-sub" id="inv-qbo-status" style="margin-top:6px;"></div>
                 </div>
@@ -1749,7 +1751,8 @@
                   </table>
                 </div>
                 <div class="row-actions" style="margin-top:12px;">
-                  <button type="button" class="btn-primary" id="upl-qb-csv-btn">Download QuickBooks invoice file (.csv)</button>
+                  <button type="button" class="btn-primary" id="upl-qb-send-btn">Send invoices to QuickBooks</button>
+                  <button type="button" class="btn-sm" id="upl-qb-csv-btn">Download QuickBooks invoice file (.csv)</button>
                   <span id="upl-qb-status" style="margin-left:10px; color:var(--text-secondary); font-size:13px;"></span>
                 </div>
               </section>
@@ -6381,6 +6384,53 @@ window.addEventListener("unhandledrejection", function(e){
     setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
   }
 
+  // the weekly bills as QuickBooks bill objects (same lines as the CSV)
+  function billsPayloads(week){
+    var lines = computeBillLines(week), dateStr = fmtDateMDY(week), out = [];
+    function mk(prefix, vendor, memo, items){
+      if(!items.length) return;
+      out.push({ doc_number: prefix + "-" + week.replace(/-/g, ""), vendor: vendor, txn_date: week, due_date: week, terms: BILL_TERMS, memo: memo,
+        lines: items.map(function(it){ return { account: it.category, description: it.description, amount: round2(it.amount), class: it.klass || "" }; }) });
+    }
+    mk("WC", WC_VENDOR, "Weekly workers' comp premium \u2014 week ending " + dateStr, lines.wc);
+    mk("S4L", FSG_VENDOR, "Weekly FSG commission \u2014 week ending " + dateStr, lines.fsg);
+    return out;
+  }
+  var billsQboConfirm = null;
+  async function billsSendQbo(){
+    var btn = document.getElementById("bills-qbo-btn"), st = document.getElementById("bills-qbo-status");
+    function say(t, c){ st.textContent = t; st.style.color = c || "var(--text-secondary)"; }
+    var select = document.getElementById("bills-week-select"), week = select && select.value;
+    if(!week){ say("Pick a week first.", "var(--critical)"); return; }
+    await ensureBillLocs();
+    var bills = billsPayloads(week);
+    if(!bills.length){ say("No workers' comp or FSG commission amounts for that week \u2014 nothing to send.", "var(--critical)"); return; }
+    btn.disabled = true;
+    try{
+      if(!billsQboConfirm){
+        say("Checking with QuickBooks\u2026");
+        var chk = await qbiCall("validate_bills", { bills: bills });
+        var bad = chk.results.filter(function(x){ return !x.ok; });
+        if(bad.length){ say(bad.map(function(x){ return x.doc_number + ": " + x.error; }).join(" \u00b7 "), "var(--critical)"); return; }
+        var tot = 0; chk.results.forEach(function(x){ tot += x.total || 0; });
+        var live = chk.env === "production";
+        btn.textContent = "Click again to create " + bills.length + " bill(s), " + fmtUSD(round2(tot)) + (live ? " in LIVE QuickBooks" : " in SANDBOX");
+        say(bills.map(function(b, i){ return b.vendor + " " + b.doc_number + " (" + b.lines.length + " lines, " + fmtUSD(chk.results[i].total) + ")"; }).join(" \u00b7 ") + " passed QuickBooks' check. Nothing has been created yet.", "var(--good)");
+        billsQboConfirm = setTimeout(function(){ billsQboConfirm = null; btn.textContent = "Send bills to QuickBooks"; }, 10000);
+        return;
+      }
+      clearTimeout(billsQboConfirm); billsQboConfirm = null; btn.textContent = "Sending\u2026";
+      var res = await qbiCall("send_bills", { bills: bills });
+      var ok = res.results.filter(function(x){ return x.ok; }), nok = res.results.filter(function(x){ return !x.ok; });
+      say(ok.length + " bill(s) created in QuickBooks." + (nok.length ? " Not created: " + nok.map(function(x){ return x.doc_number + " (" + x.error + ")"; }).join("; ") : ""), nok.length ? "var(--critical)" : "var(--good)");
+    }catch(e){ say(e.message, "var(--critical)"); }
+    finally{ btn.disabled = false; if(!billsQboConfirm) btn.textContent = "Send bills to QuickBooks"; }
+  }
+  var billsQboBtnEl = document.getElementById("bills-qbo-btn");
+  if(billsQboBtnEl) billsQboBtnEl.addEventListener("click", billsSendQbo);
+  if(billsWeekSelectEl0()) billsWeekSelectEl0().addEventListener("change", function(){ if(billsQboConfirm){ clearTimeout(billsQboConfirm); billsQboConfirm = null; } var b = document.getElementById("bills-qbo-btn"); if(b) b.textContent = "Send bills to QuickBooks"; });
+  function billsWeekSelectEl0(){ return document.getElementById("bills-week-select"); }
+
   var billsWeekSelectEl = document.getElementById("bills-week-select");
   if(billsWeekSelectEl) billsWeekSelectEl.addEventListener("change", renderBillsPreview);
   var billsDownloadBtnEl = document.getElementById("bills-download-btn");
@@ -6866,6 +6916,10 @@ window.addEventListener("unhandledrejection", function(e){
 
       // 3b) QuickBooks Invoice List by Date -> Sales for every location that has no PDF invoice this week
       var invListFile = document.getElementById("inv-file").files[0];
+      if(!invListFile && !(uplQboInv && uplQboInvWeek === checkDate)){
+        try{ await uplEnsureQboInvoices(checkDate); }
+        catch(qe){ uplAddWarning(warnings, "No invoice list file was added and QuickBooks couldn't supply this week's invoices (" + ((qe && qe.message) || "unknown error") + "). Sales for locations without a PDF invoice are blank."); }
+      }
       var fromQbo = !invListFile && uplQboInv && uplQboInvWeek === checkDate;   // pulled straight from QuickBooks for this week
       if(invListFile || fromQbo){
         try{
@@ -7037,14 +7091,10 @@ window.addEventListener("unhandledrejection", function(e){
   }
   function qbUsDate(iso){ var m = String(iso).match(/(\d{4})-(\d{2})-(\d{2})/); return m ? m[2] + "/" + m[3] + "/" + m[1] : ""; }
   function qbCsvCell(v){ v = (v === null || v === undefined) ? "" : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+  // Every FSG invoice is dated the week-ending Saturday (check date minus 6), the same as the other customer invoices.
+  // (The Tower PDFs print a payroll period that ends a day later, which used to leak into the invoice date.)
   function qbPeriod(checkDate, info){
-    var end = isoAddDays(checkDate, -6), start = isoAddDays(checkDate, -12);
-    if(info && info.periodEnd){
-      var e = info.periodEnd.match(/(\d{2})\/(\d{2})\/(\d{4})/), st = info.periodStart && info.periodStart.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-      if(e) end = e[3] + "-" + e[1] + "-" + e[2];
-      if(st) start = st[3] + "-" + st[1] + "-" + st[2];
-    }
-    return { start: start, end: end };
+    return { start: isoAddDays(checkDate, -12), end: isoAddDays(checkDate, -6) };
   }
   var uplQbRows = [];
   function uplRenderQb(checkDate){
@@ -7077,27 +7127,72 @@ window.addEventListener("unhandledrejection", function(e){
     tf.innerHTML = '<td class="strong">Total</td><td></td><td></td><td class="num-col num strong">' + fmtUSD(round2(total)) + '</td><td></td>';
     tbody.appendChild(tf);
     document.getElementById("upl-qb-csv-btn").disabled = !uplQbRows.length;
+    document.getElementById("upl-qb-send-btn").disabled = !uplQbRows.length;
     document.getElementById("upl-qb-status").textContent = waiting.length ? "Waiting on: " + waiting.join(", ") + "." : "All six are ready. Invoice numbers go up by one each week; check them against QuickBooks before importing.";
     document.getElementById("upl-qb-status").style.color = "var(--text-secondary)";
   }
-  async function uplQbDownload(){
+  // the six FSG invoices as QuickBooks invoice objects (shared by the CSV download and the direct send)
+  async function uplQbCollect(){
     var statusEl = document.getElementById("upl-qb-status");
     var checkDate = document.getElementById("upl-week-input").value;
     var nums = {}, bad = [];
     Array.prototype.forEach.call(document.querySelectorAll(".upl-qb-no"), function(i){
       var v = i.value.trim(); nums[i.getAttribute("data-loc")] = v; if(!v) bad.push(i.getAttribute("data-loc"));
     });
-    if(bad.length){ statusEl.textContent = "Enter an invoice number for: " + bad.join(", ") + "."; statusEl.style.color = "var(--critical)"; return; }
+    if(bad.length){ statusEl.textContent = "Enter an invoice number for: " + bad.join(", ") + "."; statusEl.style.color = "var(--critical)"; return null; }
     var ref = await loadUplRefData();
-    var head = ["*InvoiceNo","*Customer","*InvoiceDate","*DueDate","Terms","Location","Memo","Item(Product/Service)","ItemDescription","ItemQuantity","ItemRate","*ItemAmount","Taxable","TaxRate","Service Date","Class"];
-    var lines = [head.join(",")];
-    uplQbRows.forEach(function(r){
+    var items = uplQbRows.map(function(r){
       var per = qbPeriod(checkDate, r.info);
       var locRow = (ref.locations || []).filter(function(l){ return l.staffing_location === r.loc; })[0] || {};
       var klass = locRow.office_code ? ((locRow.state || r.state || "") + ":" + locRow.office_code) : "";
-      var amt = r.owed.toFixed(2);
-      lines.push([nums[r.loc], "Frontier Solutions Group", qbUsDate(per.end), qbUsDate(isoAddDays(per.end, 10)), "Net 10", "Solutions 4 Labor LLC", "",
-        "Staffing Labor", r.loc + " - payroll period " + qbUsDate(per.start) + " - " + qbUsDate(per.end), 1, amt, amt, "", "", qbUsDate(per.end), klass].map(qbCsvCell).join(","));
+      return { loc: r.loc, owed: r.owed, p: {
+        doc_number: nums[r.loc], customer: "Frontier Solutions Group", txn_date: per.end, due_date: isoAddDays(per.end, 10), terms: "Net 10",
+        class: klass, location: "Solutions 4 Labor LLC", item: "Staffing Labor",
+        description: r.loc + " - payroll period " + qbUsDate(per.start) + " - " + qbUsDate(per.end), amount: round2(r.owed), source_file: "FSG " + r.loc } };
+    });
+    return { nums: nums, checkDate: checkDate, items: items };
+  }
+  var uplQbConfirm = null;
+  async function uplQbSend(){
+    var statusEl = document.getElementById("upl-qb-status"), btn = document.getElementById("upl-qb-send-btn");
+    function say(t, c){ statusEl.textContent = t; statusEl.style.color = c || "var(--text-secondary)"; }
+    var c = await uplQbCollect(); if(!c) return;
+    if(!c.items.length){ say("Nothing to send yet.", "var(--critical)"); return; }
+    btn.disabled = true;
+    try{
+      if(!uplQbConfirm){
+        // first click: check everything with QuickBooks (nothing is created), then ask for a second click
+        say("Checking with QuickBooks\u2026");
+        var chk = await qbiCall("validate", { invoices: c.items.map(function(x){ return x.p; }) });
+        var bad = chk.results.filter(function(x){ return !x.ok; });
+        if(bad.length){ say(bad.map(function(x){ return x.doc_number + ": " + x.error; }).join(" \u00b7 "), "var(--critical)"); return; }
+        var tot = 0; c.items.forEach(function(x){ tot += x.owed; });
+        var live = chk.env === "production";
+        btn.textContent = "Click again to create " + c.items.length + " invoice(s), " + fmtUSD(round2(tot)) + (live ? " in LIVE QuickBooks" : " in SANDBOX");
+        say("All " + c.items.length + " passed QuickBooks' check. Nothing has been created yet.", "var(--good)");
+        uplQbConfirm = setTimeout(function(){ uplQbConfirm = null; btn.textContent = "Send invoices to QuickBooks"; }, 10000);
+        return;
+      }
+      clearTimeout(uplQbConfirm); uplQbConfirm = null; btn.textContent = "Sending\u2026";
+      var res = await qbiCall("send", { invoices: c.items.map(function(x){ return x.p; }) });
+      var ok = res.results.filter(function(x){ return x.ok; }), nok = res.results.filter(function(x){ return !x.ok; });
+      var saved = qbLoadNumbers();
+      res.results.forEach(function(x, i){ if(x.ok) saved[c.items[i].loc] = { no: c.nums[c.items[i].loc], date: c.checkDate }; });
+      qbSaveNumbers(saved);
+      say(ok.length + " invoice(s) created in QuickBooks." + (nok.length ? " Not created: " + nok.map(function(x){ return x.doc_number + " (" + x.error + ")"; }).join("; ") : ""), nok.length ? "var(--critical)" : "var(--good)");
+    }catch(e){ say(e.message, "var(--critical)"); }
+    finally{ btn.disabled = false; if(!uplQbConfirm) btn.textContent = "Send invoices to QuickBooks"; }
+  }
+  async function uplQbDownload(){
+    var statusEl = document.getElementById("upl-qb-status");
+    var c = await uplQbCollect(); if(!c) return;
+    var checkDate = c.checkDate, nums = c.nums;
+    var head = ["*InvoiceNo","*Customer","*InvoiceDate","*DueDate","Terms","Location","Memo","Item(Product/Service)","ItemDescription","ItemQuantity","ItemRate","*ItemAmount","Taxable","TaxRate","Service Date","Class"];
+    var lines = [head.join(",")];
+    c.items.forEach(function(x){
+      var p = x.p, amt = x.owed.toFixed(2);
+      lines.push([p.doc_number, p.customer, qbUsDate(p.txn_date), qbUsDate(p.due_date), p.terms, p.location, "",
+        p.item, p.description, 1, amt, amt, "", "", qbUsDate(p.txn_date), p.class].map(qbCsvCell).join(","));
     });
     var blob = new Blob([lines.join("\r\n") + "\r\n"], { type: "text/csv" });
     var a = document.createElement("a");
@@ -7197,7 +7292,7 @@ window.addEventListener("unhandledrejection", function(e){
   // ====================================================================
   // Weekly invoices (QuickBooks Invoice List by Date) -> invoices table
   // ====================================================================
-  var invParsed = null;
+  var invParsed = null, invSkipped = false;
   function xlDateIso(v){
     if(v instanceof Date && !isNaN(v)){
       var d = new Date(v.getTime() + 12*3600*1000);
@@ -7287,15 +7382,29 @@ window.addEventListener("unhandledrejection", function(e){
     errEl.style.display = "none"; warnEl.style.display = "none"; warnEl.innerHTML = "";
     document.getElementById("inv-preview").hidden = true;
     document.getElementById("inv-status").textContent = "";
-    invParsed = null;
+    invParsed = null; invSkipped = false;
     var btn = document.getElementById("inv-parse-btn");
     btn.disabled = true; btn.textContent = "Reading…";
     try{
       var f = document.getElementById("inv-file").files[0];
-      if(!f) throw new Error("Choose the Invoice List file first.");
-      var wb = XLSX.read(await f.arrayBuffer(), { type: "array", cellDates: true });
-      var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: null });
-      var parsed = parseInvoiceListRows(rows);
+      var parsed;
+      if(f){
+        var wb = XLSX.read(await f.arrayBuffer(), { type: "array", cellDates: true });
+        var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: null });
+        parsed = parseInvoiceListRows(rows);
+      } else {
+        // no file: use this week's invoices straight from QuickBooks
+        var wk = document.getElementById("upl-week-input").value;
+        try{
+          if(!wk) throw new Error("Set the week ending first.");
+          parsed = { rows: (await uplEnsureQboInvoices(wk)).map(function(x){ return Object.assign({}, x); }), skippedNoNum: 0 };
+        }catch(qe){
+          invSkipped = true;
+          warnEl.innerHTML = '<div>\u26a0 No invoice list file was added and QuickBooks couldn\u2019t supply the invoices (' + escHtml((qe && qe.message) || "unknown error") + '). The Invoices tab won\u2019t be updated this time.</div>';
+          warnEl.style.display = "block";
+          return;
+        }
+      }
       var from = document.getElementById("inv-from").value;
       var list = parsed.rows.filter(function(x){ return !from || x.date >= from; });
       if(!list.length) throw new Error("No invoices found in that file" + (from ? " on or after " + fmtDateFull(from) : "") + ".");
@@ -8886,23 +8995,31 @@ window.addEventListener("unhandledrejection", function(e){
   // ====================================================================
   var uplReviewed = false, uplBusy = false;
   var uplQboInv = null, uplQboInvWeek = "";   // invoices pulled from QuickBooks for the week being updated
+  // This week's invoices from QuickBooks (cached for the week). Same shape the invoice-list file is parsed into.
+  async function uplFetchQboInvoices(week){
+    var from = isoAddDays(week, -12), to = isoAddDays(week, -5);
+    var res = await qbiCall("invoice_list", { from: from, to: to });
+    var rows = (res.invoices || []).filter(function(x){ return x.num && x.customer && x.date && x.amount; }).map(function(x){
+      return { date: x.date, num: String(x.num), qbName: x.customer, amount: round2(x.amount), due: x.due || null, issuedAs: null, billedBy: x.location || null };
+    });
+    uplQboInv = rows; uplQboInvWeek = week;
+    var tot = 0; rows.forEach(function(x){ tot += x.amount; });
+    var st = document.getElementById("inv-qbo-status");
+    st.textContent = "Got " + rows.length + " invoice(s) from QuickBooks dated " + from + " to " + to + ", totalling " + fmtUSD(round2(tot)) + ". They'll be used instead of a file.";
+    st.style.color = "var(--good)";
+    return rows;
+  }
+  async function uplEnsureQboInvoices(week){
+    if(uplQboInv && uplQboInvWeek === week) return uplQboInv;
+    return await uplFetchQboInvoices(week);
+  }
   async function uplGetQboInvoices(){
     var st = document.getElementById("inv-qbo-status"), btn = document.getElementById("inv-qbo-btn");
     var week = document.getElementById("upl-week-input").value;
     if(!week){ st.textContent = "Set the week ending (check date) first."; st.style.color = "var(--critical)"; return; }
-    var from = isoAddDays(week, -12), to = isoAddDays(week, -5);
-    btn.disabled = true; st.style.color = "var(--text-secondary)"; st.textContent = "Getting invoices dated " + from + " to " + to + "…";
-    try{
-      var res = await qbiCall("invoice_list", { from: from, to: to });
-      var rows = (res.invoices || []).filter(function(x){ return x.num && x.customer && x.date && x.amount; }).map(function(x){
-        return { date: x.date, num: String(x.num), qbName: x.customer, amount: round2(x.amount), due: x.due || null, issuedAs: null, billedBy: x.location || null };
-      });
-      uplQboInv = rows; uplQboInvWeek = week;
-      var tot = 0; rows.forEach(function(x){ tot += x.amount; });
-      st.textContent = "Got " + rows.length + " invoice(s) from QuickBooks dated " + from + " to " + to + ", totalling " + fmtUSD(round2(tot)) + ". They'll be used instead of the file.";
-      st.style.color = "var(--good)";
-      uplInvalidate();
-    }catch(e){ uplQboInv = null; st.textContent = e.message; st.style.color = "var(--critical)"; }
+    btn.disabled = true; st.style.color = "var(--text-secondary)"; st.textContent = "Getting invoices\u2026";
+    try{ await uplFetchQboInvoices(week); uplInvalidate(); }
+    catch(e){ uplQboInv = null; st.textContent = e.message; st.style.color = "var(--critical)"; }
     finally{ btn.disabled = false; }
   }
   function uplMissingFiles(){
@@ -8912,7 +9029,6 @@ window.addEventListener("unhandledrejection", function(e){
     if(none("upl-payroll-file")) miss.push("payroll report");
     if(none("upl-wc-file")) miss.push("WC/state report");
     if(none("upl-tower-files")) miss.push("invoice PDF(s)");
-    if(none("inv-file") && !(uplQboInv && uplQboInvWeek === document.getElementById("upl-week-input").value)) miss.push("invoice list (file, or Get invoices from QuickBooks)");
     return miss;
   }
   function uplRefreshBar(){
@@ -8940,7 +9056,7 @@ window.addEventListener("unhandledrejection", function(e){
       await uplComputePreview();
       var payOk = uplPayrollRows.length > 0 && document.getElementById("upl-err").style.display === "none";
       await invRead();
-      var invOk = !!invParsed;
+      var invOk = !!invParsed || invSkipped;
       await plcUpRead();
       var plcOk = !!plcUp;
       var bad = [];
@@ -8967,7 +9083,7 @@ window.addEventListener("unhandledrejection", function(e){
     document.getElementById("upl-review-btn").disabled = true; document.getElementById("upl-all-btn").disabled = true;
     var msg = document.getElementById("upl-bar-msg"), res = document.getElementById("upl-bar-results");
     msg.textContent = "Saving everything\u2026"; res.style.display = "block"; res.innerHTML = "";
-    var steps = [["Payroll & commissions", uplSubmit], ["Invoices", invSave], ["Placements", plcUpSave]];
+    var steps = [["Payroll & commissions", uplSubmit], ["Invoices", function(){ return invSkipped ? true : invSave(); }], ["Placements", plcUpSave]];
     var failed = 0, lines = [];
     for(var i=0; i<steps.length; i++){
       var ok = false;
@@ -9089,6 +9205,7 @@ window.addEventListener("unhandledrejection", function(e){
     var btn = document.getElementById("qbi-lists-btn"); btn.disabled = true; btn.textContent = "Loading QuickBooks lists…";
     try{
       qbiMeta = await qbiCall("meta"); qbiOptCache = {};
+      qbiMeta.classes = (qbiMeta.classes || []).slice().sort(function(a, b){ return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" }); });
       function fill(id, arr){ document.getElementById(id).innerHTML = (arr || []).map(function(v){ return '<option value="' + escHtml(v) + '"></option>'; }).join(""); }
       fill("qbi-dl-customers", qbiMeta.customers); fill("qbi-dl-classes", qbiMeta.classes); fill("qbi-dl-terms", qbiMeta.terms);
       fill("qbi-dl-items", qbiMeta.items); fill("qbi-dl-locations", qbiMeta.locations);
@@ -9551,6 +9668,7 @@ window.addEventListener("unhandledrejection", function(e){
     uplRefreshBar();
     document.getElementById("upl-submit-btn").addEventListener("click", uplSubmit);
     document.getElementById("upl-qb-csv-btn").addEventListener("click", uplQbDownload);
+    document.getElementById("upl-qb-send-btn").addEventListener("click", uplQbSend);
     document.getElementById("inv-save-btn").addEventListener("click", invSave);
     document.getElementById("plc-up-save-btn").addEventListener("click", plcUpSave);
     document.getElementById("bs-save-btn").addEventListener("click", bsSave);
