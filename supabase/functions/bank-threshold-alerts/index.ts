@@ -1,5 +1,7 @@
 // Supabase Edge Function: bank-threshold-alerts
-// Reads bank-balances.json from GitHub, compares each account to its threshold in
+// First asks the qbo function to pull fresh bank balances from every connected QuickBooks company
+// (stored in public.bank_balances_latest), then uses those live balances; any company that isn't
+// connected yet falls back to bank-balances.json on GitHub. Compares each account to its threshold in
 // public.bank_thresholds, and emails every admin (public.user_roles role = 'admin')
 // when an account newly drops below its threshold. Each drop is emailed once;
 // the alert re-arms after the account is back at or above the threshold.
@@ -32,13 +34,47 @@ Deno.serve(async () => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  // 1) Current balances
+  // 0) Pull fresh balances straight from QuickBooks (best effort: a failure here must not stop the alerts)
+  let refreshNote = "";
+  try {
+    const r = await fetch(Deno.env.get("SUPABASE_URL")! + "/functions/v1/qbo", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "refresh_banks" }),
+    });
+    const j = await r.json().catch(() => ({}));
+    const failed = (j.results ?? []).filter((x: { ok: boolean }) => !x.ok).length;
+    refreshNote = r.ok ? `qbo refresh: ${(j.results ?? []).length - failed} ok, ${failed} failed` : `qbo refresh http ${r.status}`;
+  } catch (e) { refreshNote = "qbo refresh error: " + (e as Error).message; }
+
+  // 1) Current balances: the daily file first...
   const res = await fetch(BALANCES_URL + "?ts=" + Date.now(), { cache: "no-store" });
-  if (!res.ok) return json({ ok: false, error: "balances fetch " + res.status }, 502);
-  const data = await res.json();
+  let data: { as_of?: string; companies?: Company[]; accounts?: Account[] } = {};
+  if (res.ok) data = await res.json();
+  else if (!refreshNote.includes(" ok")) return json({ ok: false, error: "balances fetch " + res.status }, 502);
   const companies: Company[] = Array.isArray(data.companies)
     ? data.companies
     : [{ key: "ws", name: "Workforce Strategies", accounts: data.accounts ?? [] }];
+  // ...then live QuickBooks balances replace a company's numbers when they are at least as new as the file
+  const { data: live } = await sb.from("bank_balances_latest").select("company_key,account_code,account_name,balance,fetched_at");
+  if (live?.length) {
+    const etDay = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+    const fileDay = String(data.as_of ?? "").slice(0, 10);
+    const byCo = new Map<string, { code: string; name: string; balance: number; at: string }[]>();
+    for (const x of live) {
+      const list = byCo.get(x.company_key) ?? [];
+      list.push({ code: x.account_code === x.account_name ? "" : x.account_code, name: x.account_name, balance: Number(x.balance), at: x.fetched_at });
+      byCo.set(x.company_key, list);
+    }
+    for (const [k, list] of byCo) {
+      const newest = list.reduce((m, a) => (a.at > m ? a.at : m), "");
+      if (fileDay && etDay(newest) < fileDay) continue; // live data older than the file: keep the file
+      const accounts = list.map((a) => ({ code: a.code, name: a.name, balance: a.balance }));
+      const existing = companies.find((c) => c.key === k);
+      if (existing) existing.accounts = accounts;
+      else companies.push({ key: k, name: k, accounts });
+    }
+  }
   const balances = new Map<string, { company: string; account: string; code: string; balance: number }>();
   for (const c of companies) {
     for (const a of c.accounts ?? []) {
@@ -131,7 +167,7 @@ Deno.serve(async () => {
     if (uErr) return json({ ok: false, error: uErr.message }, 500);
   }
 
-  return json({ ok: true, as_of: data.as_of, checked: updates.length, newly_below: newlyBelow, emailed });
+  return json({ ok: true, refresh: refreshNote, as_of: data.as_of, checked: updates.length, newly_below: newlyBelow, emailed });
 });
 
 function json(body: unknown, status = 200) {
