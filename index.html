@@ -867,6 +867,7 @@
         </div>
         <div class="who">
           <span class="who-email" id="companies-who-email"></span>
+          <button class="btn-ghost admin-only" type="button" id="co-settings-btn" hidden>Settings</button>
           <button class="btn-ghost js-open-setpw" type="button">Password</button>
           <button class="btn-ghost js-signout" type="button">Sign out</button>
         </div>
@@ -900,6 +901,7 @@
               <div class="panel-title">Bank balances &mdash; all companies</div>
               <div class="panel-sub" id="co-bank-sub"></div>
             </div>
+            <button type="button" class="btn-sm admin-only" id="co-bank-refresh" hidden>Refresh from QuickBooks</button>
           </div>
           <div class="bank-alert" id="co-bank-alert" role="alert" hidden></div>
           <div class="stat-strip" id="co-bank-stats"></div>
@@ -1192,6 +1194,7 @@
         <button class="pill" type="button" data-section="paytools">Payroll tools</button>
         <button class="pill admin-only" type="button" data-section="upload" hidden>Weekly update</button>
         <button class="pill admin-only" type="button" data-section="qbinv" hidden>Invoices to QuickBooks</button>
+        <button class="pill admin-only" type="button" data-section="settings" hidden>Settings</button>
         <button class="pill" type="button" data-section="mobile">Mobile summary</button>
       </div>
     </nav>
@@ -1960,6 +1963,33 @@
                   <tbody><tr><td colspan="6" style="color:var(--text-secondary);">Nothing sent yet.</td></tr></tbody>
                 </table>
               </div>
+            </section>
+          </div>
+        </div>
+
+
+        <div class="view" id="view-settings" hidden>
+          <div class="panel-row" style="grid-template-columns:1fr;">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <div class="panel-title">QuickBooks connections</div>
+                  <div class="panel-sub">Connect each company once. Intuit will ask which QuickBooks company to allow &mdash; pick the one that matches the row you clicked. After that the site reads bank balances (and, for Workforce Strategies, invoices and the balance sheet) straight from QuickBooks.</div>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                  <span id="st-env" style="font-size:12px; font-weight:600;"></span>
+                  <button type="button" class="btn-sm" id="st-pull-btn">Pull bank balances now</button>
+                </div>
+              </div>
+              <div class="login-msg err" id="st-err" style="display:none; margin-bottom:12px;"></div>
+              <div id="st-note" style="display:none; margin-bottom:12px; font-size:13px;"></div>
+              <div class="table-scroll">
+                <table class="data-table" id="st-table">
+                  <thead><tr><th>Company</th><th>QuickBooks company</th><th>Status</th><th>Login good until</th><th>Last bank pull</th><th style="text-align:right;">Actions</th></tr></thead>
+                  <tbody><tr><td colspan="6" style="color:var(--text-secondary);">Loading&hellip;</td></tr></tbody>
+                </table>
+              </div>
+              <div class="panel-sub" style="margin-top:12px;">A QuickBooks login stays valid as long as it keeps being used (about 100 days idle). The hourly bank refresh keeps every connected company&rsquo;s login alive; a company that shows &ldquo;expires soon&rdquo; just needs Reconnect.</div>
             </section>
           </div>
         </div>
@@ -3206,6 +3236,7 @@ window.addEventListener("unhandledrejection", function(e){
   // ---------- role (admin vs. viewer) ----------
   var currentRole = "viewer";
   var QBI_RETURN = /[?&]qbo=/.test(window.location.search);   // opened by Intuit's redirect after connecting QuickBooks
+  var QBO_RET = (function(){ var q = new URLSearchParams(window.location.search); return q.get("qbo") ? { res: q.get("qbo"), key: q.get("qbokey") || "", to: q.get("qboto") || "qbinv", msg: q.get("qbomsg") || "" } : null; })();
   function isAdmin(){ return currentRole === "admin"; }
   async function loadRole(session){
     currentRole = "viewer";
@@ -3389,7 +3420,7 @@ window.addEventListener("unhandledrejection", function(e){
     }
     if(QBI_RETURN && isAdmin()){
       // back from Intuit's approval page: open the QuickBooks invoices page
-      QBI_RETURN = false; setCompanyScreen("ws"); showSection("qbinv");
+      QBI_RETURN = false; setCompanyScreen("ws"); showSection(QBO_RET && QBO_RET.to === "settings" ? "settings" : "qbinv");
       return;
     }
     if(location.hash.indexOf("#customer/") === 0){
@@ -3429,6 +3460,18 @@ window.addEventListener("unhandledrejection", function(e){
       btn.disabled = false; btn.textContent = "Save password";
     }
   });
+  document.getElementById("co-settings-btn").addEventListener("click", function(){ setCompanyScreen("ws"); showSection("settings"); });
+  document.getElementById("co-bank-refresh").addEventListener("click", async function(){
+    var btn = this, sub = document.getElementById("co-bank-sub"); btn.disabled = true; btn.textContent = "Refreshing\u2026";
+    try{
+      var r = await qbiCall("refresh_banks");
+      var bad = (r.results || []).filter(function(x){ return !x.ok; });
+      await loadDailyBank(); renderChooserBankBalances();
+      btn.textContent = bad.length ? "Refreshed (" + bad.length + " failed)" : "Refreshed";
+      if(bad.length){ var s2 = document.getElementById("co-bank-sub"); s2.textContent += " \u00b7 Couldn't refresh: " + bad.map(function(x){ return x.display_name; }).join(", ") + " (see Settings)"; }
+    }catch(e){ btn.textContent = "Refresh failed"; btn.title = e.message; sub.textContent = e.message; }
+    setTimeout(function(){ btn.textContent = "Refresh from QuickBooks"; btn.disabled = false; }, 3500);
+  });
   Array.prototype.forEach.call(document.querySelectorAll(".js-companies-btn"), function(b){
     b.addEventListener("click", function(){ setCompanyScreen(null); });
   });
@@ -3455,7 +3498,7 @@ window.addEventListener("unhandledrejection", function(e){
   });
 
   // ---------- section nav ----------
-  var SECTION_IDS = ["home", "finance", "customers", "invoices", "placements", "payroll", "paytools", "upload", "qbinv", "mobile"];
+  var SECTION_IDS = ["home", "finance", "customers", "invoices", "placements", "payroll", "paytools", "upload", "qbinv", "settings", "mobile"];
   var sectionPills = document.querySelectorAll(".pill[data-section]");
   function showSection(sec){
     if(currentRole === "mobile") sec = "mobile";
@@ -3475,6 +3518,7 @@ window.addEventListener("unhandledrejection", function(e){
     else if(sec === "payroll" || sec === "paytools") loadPayroll();
     else if(sec === "upload") initUploadSection();
     else if(sec === "qbinv") qbiInit();
+    else if(sec === "settings") stInit();
     else if(sec === "mobile") loadDashboard().then(renderMobileSummary);
   }
   sectionPills.forEach(function(btn){
@@ -4344,7 +4388,46 @@ window.addEventListener("unhandledrejection", function(e){
   // Daily QuickBooks register balances, published to bank-balances.json in this repo.
   // When that file is at least as new as the latest weekly snapshot, Home shows it instead.
   var dailyBank = null;
+  var CO_NAMES = { ws:"Workforce Strategies", alltruss:"All Truss", allbuilding:"ALL Building Solutions", doublel:"Double L Land", rollincoal:"Rollin Coal Trucking", badinridge:"Badin Ridge", ldchomes:"LDC Homes", sparetime:"Spare Time Renovations", wickedwings:"Wicked Wings", lbmministorage:"LBM Mini Storage", premierhomes:"Premier Homes NC", carolinashelter:"Carolina Shelter Systems", premierrentals:"Premier Rentals NC", allset:"Allset Supply", rileys:"Riley's Labor" };
+  function etDate(ms){ return new Date(ms).toLocaleDateString("en-CA", { timeZone: "America/New_York" }); }
+  // Balances pulled straight from QuickBooks (Supabase table bank_balances_latest) replace the daily file's
+  // numbers company by company, as long as they are at least as new as the file.
+  async function mergeLiveBank(){
+    try{
+      var r = await sb.from("bank_balances_latest").select("company_key,account_code,account_name,balance,fetched_at");
+      if(r.error || !r.data || !r.data.length) return;
+      var by = {}, lastBy = {}, latest = 0;
+      r.data.forEach(function(x){
+        var ms = new Date(x.fetched_at).getTime(); if(!isFinite(ms)) ms = 0;
+        (by[x.company_key] = by[x.company_key] || []).push({ code: x.account_code === x.account_name ? "" : x.account_code, name: x.account_name, balance: Number(x.balance) || 0 });
+        if(!lastBy[x.company_key] || ms > lastBy[x.company_key]) lastBy[x.company_key] = ms;
+        if(ms > latest) latest = ms;
+      });
+      var fileAsOf = dailyBank && dailyBank.as_of ? String(dailyBank.as_of).slice(0, 10) : "";
+      var base = (dailyBank && Array.isArray(dailyBank.companies)) ? dailyBank.companies : [];
+      var seen = {}, liveCount = 0, out = [];
+      function liveOk(k){ return by[k] && (!fileAsOf || etDate(lastBy[k]) >= fileAsOf); }
+      base.forEach(function(c){
+        seen[c.key] = 1;
+        if(liveOk(c.key)){ liveCount++; out.push({ key: c.key, name: c.name, qbo: c.qbo, accounts: by[c.key], source: "live", fetched: lastBy[c.key] }); }
+        else out.push({ key: c.key, name: c.name, qbo: c.qbo, accounts: c.accounts, source: "file" });
+      });
+      Object.keys(by).forEach(function(k){ if(!seen[k] && liveOk(k)){ liveCount++; out.push({ key: k, name: CO_NAMES[k] || k, accounts: by[k], source: "live", fetched: lastBy[k] }); } });
+      if(!liveCount) return;
+      var ws = out.filter(function(c){ return c.key === "ws"; })[0];
+      dailyBank = {
+        as_of: etDate(latest), companies: out, file_as_of: fileAsOf || null, live_at: latest, live_count: liveCount,
+        accounts: ws ? ws.accounts.filter(function(a){ return (Number(a.balance) || 0) !== 0; }) : []
+      };
+    }catch(e){ /* table not created yet, or not signed in: keep the daily file's numbers */ }
+  }
   async function loadDailyBank(){
+    await loadDailyBankFile();
+    await mergeLiveBank();
+    return dailyBank;
+  }
+  async function loadDailyBankFile(){
+    dailyBank = null;
     try{
       var r = await fetch("bank-balances.json?ts=" + Date.now(), { cache: "no-store" });
       if(!r.ok) return null;
@@ -4408,14 +4491,22 @@ window.addEventListener("unhandledrejection", function(e){
     var tbody = table ? table.querySelector("tbody") : null;
     if(!panel || !sub || !stats || !tbody) return;
     var cos = (dailyBank && Array.isArray(dailyBank.companies)) ? dailyBank.companies : [];
-    cos = cos.filter(function(c){ return c && Array.isArray(c.accounts) && c.accounts.length; });
+    cos = cos.filter(function(c){ return c && Array.isArray(c.accounts); }).map(function(c){
+      var keep = c.accounts.filter(function(a){ return (Number(a.balance) || 0) !== 0 || typeof bankThresholds[thrKey(c, a)] === "number"; });
+      return { key: c.key, name: c.name, qbo: c.qbo, source: c.source, accounts: keep };
+    }).filter(function(c){ return c.accounts.length; });
     if(!cos.length){ panel.hidden = true; return; }
+    var liveN = cos.filter(function(c){ return c.source === "live"; }).length;
     var admin = isAdmin();
     var cols = admin ? 5 : 4;
     table.querySelector("thead").innerHTML = '<tr><th>Company</th><th>Account</th><th>Code</th><th class="num-col">Balance</th>' +
       (admin ? '<th class="num-col">Alert below</th>' : '') + '</tr>';
     stats.innerHTML = ""; tbody.innerHTML = "";
-    sub.textContent = "As of " + fmtDateFull(dailyBank.as_of) + " · QuickBooks register balances (daily)";
+    if(liveN){
+      sub.textContent = "Live from QuickBooks \u00b7 updated " + stFmtDT(new Date(dailyBank.live_at).toISOString()) + (liveN < cos.length ? " \u00b7 " + (cos.length - liveN) + " of " + cos.length + " companies still from the daily file" : "");
+    }else{
+      sub.textContent = "As of " + fmtDateFull(dailyBank.as_of) + " · QuickBooks register balances (daily)";
+    }
     var grand = 0, count = 0, below = [];
     cos.forEach(function(c){
       var accts = c.accounts.slice().sort(function(a, b){ return (Number(b.balance)||0) - (Number(a.balance)||0); });
@@ -4429,7 +4520,7 @@ window.addEventListener("unhandledrejection", function(e){
         var tr = document.createElement("tr");
         if(isBelow) tr.className = "below";
         tr.innerHTML =
-          '<td>'+(i === 0 ? '<strong>'+escHtml(c.name || "—")+'</strong>' : '')+'</td>'+
+          '<td>'+(i === 0 ? '<strong>'+escHtml(c.name || "—")+'</strong>'+(liveN && c.source === "file" ? ' <span style="font-size:11px; color:var(--text-secondary);" title="Not connected to QuickBooks yet: from the daily file">file</span>' : '') : '')+'</td>'+
           '<td>'+escHtml(a.name || "—")+(isBelow ? '<span class="below-tag">Below threshold</span>' : '')+'</td>'+
           '<td>'+escHtml(a.code || "—")+'</td>'+
           '<td class="num-col num">'+fmtUSD(bal)+'</td>'+
@@ -8949,7 +9040,7 @@ window.addEventListener("unhandledrejection", function(e){
   var qbiListsLoading = false, qbiRows = [], qbiMap = {}, qbiMapLoaded = false, qbiInited = false, qbiStatusInfo = null, qbiMeta = null, qbiConfirmTimer = null, qbiBusy = false;
 
   async function qbiCall(action, extra){
-    var body = { action: action };
+    var body = { action: action, company_key: "ws" };
     Object.keys(extra || {}).forEach(function(k){ body[k] = extra[k]; });
     var res = await Promise.race([
       sb.functions.invoke("qbo", { body: body }),
@@ -9231,19 +9322,19 @@ window.addEventListener("unhandledrejection", function(e){
   async function qbiConnect(){
     var btn = document.getElementById("qbi-connect-btn"); btn.disabled = true;
     try{
-      var r = await qbiCall("connect_url");
+      var r = await qbiCall("connect_url", { return_to: "qbinv" });
       window.location.href = r.url;
     }catch(e){ qbiShowErr(e.message); btn.disabled = false; }
   }
   function qbiInit(){
     if(!isAdmin()) return;
     // coming back from Intuit's approval page
-    var q = new URLSearchParams(window.location.search), res = q.get("qbo");
-    if(res){
+    if(QBO_RET && QBO_RET.to !== "settings"){
+      var res = QBO_RET.res, rmsg = QBO_RET.msg; QBO_RET = null;
       try{ history.replaceState(null, "", location.pathname); }catch(e){}
       if(res === "connected") qbiSetStatus("QuickBooks connected.", "var(--good)");
       else if(res === "cancelled") qbiShowErr("The QuickBooks connection was cancelled.");
-      else qbiShowErr(q.get("qbomsg") || "The QuickBooks connection didn't finish.");
+      else qbiShowErr(rmsg || "The QuickBooks connection didn't finish.");
     }
     qbiLoadStatus(); qbiLoadLog();
     if(qbiInited) return;
@@ -9269,6 +9360,132 @@ window.addEventListener("unhandledrejection", function(e){
     tbl.addEventListener("change", function(e){ onEdit(e); if(e.target.getAttribute("data-f") === "customer" || e.target.getAttribute("data-f") === "send") qbiRender(); });
     tbl.addEventListener("input", onEdit);
     // the shared page-level week-ending field could pre-fill later; nothing else to wire
+  }
+
+
+  // ---- Settings: QuickBooks connection for every company ----
+  var stInited = false, stData = null, stConfirmKey = null, stConfirmTimer = null, stRowMsg = {}, stBusy = false;
+  function stFmtDT(iso){
+    if(!iso) return "—"; var d = new Date(iso); if(isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + ", " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  }
+  function stFmtD(iso){ if(!iso) return "—"; var d = new Date(iso); return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); }
+  function stShowErr(msg){ var el = document.getElementById("st-err"); el.textContent = msg || ""; el.style.display = msg ? "block" : "none"; }
+  function stNote(msg, kind){
+    var el = document.getElementById("st-note"); el.textContent = msg || ""; el.style.display = msg ? "block" : "none";
+    el.style.color = kind === "good" ? "var(--good)" : kind === "bad" ? "var(--critical)" : "var(--text-secondary)";
+  }
+  async function stLoad(){
+    try{ stData = await qbiCall("companies"); stShowErr(""); }
+    catch(e){ stData = null; stShowErr(e.message); }
+    stRender();
+  }
+  function stRender(){
+    var tb = document.querySelector("#st-table tbody"), envEl = document.getElementById("st-env");
+    if(!stData){ tb.innerHTML = '<tr><td colspan="6" style="color:var(--text-secondary);">Couldn’t load the company list.</td></tr>'; envEl.textContent = ""; return; }
+    var live = stData.env === "production";
+    envEl.textContent = live ? "LIVE QuickBooks" : "SANDBOX (test) QuickBooks";
+    envEl.style.color = live ? "var(--good)" : "var(--warn, #b7791f)";
+    var nConn = stData.companies.filter(function(c){ return c.connected && !c.wrong_env; }).length;
+    if(!stBusy && !document.getElementById("st-note").getAttribute("data-keep")){
+      stNote((live ? "" : "Test mode: the sandbox only has Intuit’s fake sample companies, so real companies can’t be connected until the function’s QBO_ENV is set to production with your production keys. ") + nConn + " of " + stData.companies.length + " companies connected.", "");
+    }
+    tb.innerHTML = "";
+    stData.companies.forEach(function(c){
+      var tr = document.createElement("tr");
+      var status, tone = "var(--text-secondary)";
+      if(!c.connected){ status = "Not connected"; }
+      else if(c.wrong_env){ status = "Connected in " + c.env + " mode — reconnect"; tone = "var(--warn, #b7791f)"; }
+      else if(c.days_left !== null && c.days_left <= 0){ status = "Login expired — reconnect"; tone = "var(--critical)"; }
+      else if(c.days_left !== null && c.days_left < 14){ status = "Connected — login expires in " + c.days_left + " days"; tone = "var(--warn, #b7791f)"; }
+      else{ status = "Connected"; tone = "var(--good)"; }
+      var qbName = c.connected
+        ? escHtml(c.qbo_company_name || "(name not read yet)") + (c.name_warning ? '<div style="font-size:12px; color:var(--warn, #b7791f);">Expected “' + escHtml(c.qbo_name) + '” — is this the right company?</div>' : "")
+        : '<span style="color:var(--text-secondary); font-size:12px;">' + (c.qbo_name ? 'expects “' + escHtml(c.qbo_name) + '”' : "") + '</span>';
+      var pull = c.last_pull_error
+        ? '<span style="color:var(--critical); font-size:12px;" title="' + escHtml(c.last_pull_error) + '">Failed: ' + escHtml(c.last_pull_error.slice(0, 70)) + (c.last_pull_error.length > 70 ? "…" : "") + '</span>'
+        : (c.last_pull_at ? stFmtDT(c.last_pull_at) : "—");
+      var msg = stRowMsg[c.company_key] ? '<div style="font-size:12px; color:' + (stRowMsg[c.company_key].bad ? "var(--critical)" : "var(--good)") + ';">' + escHtml(stRowMsg[c.company_key].text) + '</div>' : "";
+      var k = escHtml(c.company_key);
+      var acts = '<button type="button" class="btn-sm" data-act="connect" data-key="' + k + '">' + (c.connected ? "Reconnect" : "Connect") + '</button>';
+      if(c.connected){
+        acts += ' <button type="button" class="btn-sm" data-act="test" data-key="' + k + '">Test</button>';
+        acts += ' <button type="button" class="btn-sm" data-act="disconnect" data-key="' + k + '">' + (stConfirmKey === c.company_key ? "Click again to disconnect" : "Disconnect") + '</button>';
+      }
+      tr.innerHTML = '<td><strong>' + escHtml(c.display_name) + '</strong></td><td>' + qbName + '</td>' +
+        '<td style="color:' + tone + '; font-weight:600;">' + status + msg + '</td>' +
+        '<td>' + (c.connected ? stFmtD(c.refresh_expires_at) : "—") + '</td><td>' + pull + '</td>' +
+        '<td style="text-align:right; white-space:nowrap;">' + acts + '</td>';
+      tb.appendChild(tr);
+    });
+  }
+  async function stConnect(key, btn){
+    btn.disabled = true; stShowErr("");
+    try{ var r = await qbiCall("connect_url", { company_key: key, return_to: "settings" }); window.location.href = r.url; }
+    catch(e){ stShowErr(e.message); btn.disabled = false; }
+  }
+  async function stTest(key, btn){
+    btn.disabled = true; btn.textContent = "Testing…"; stShowErr("");
+    try{
+      var r = await qbiCall("status", { company_key: key });
+      stRowMsg[key] = r.connected ? { text: "Works — QuickBooks says “" + (r.company || r.realm_id) + "”." } : { bad: true, text: "Not connected in " + stData.env + " mode." };
+    }catch(e){ stRowMsg[key] = { bad: true, text: e.message }; }
+    await stLoad();
+  }
+  async function stDisconnect(key, btn){
+    if(stConfirmKey !== key){
+      stConfirmKey = key; clearTimeout(stConfirmTimer);
+      stConfirmTimer = setTimeout(function(){ stConfirmKey = null; stRender(); }, 5000);
+      stRender(); return;
+    }
+    stConfirmKey = null; btn.disabled = true; stShowErr("");
+    try{ await qbiCall("disconnect", { company_key: key }); delete stRowMsg[key]; if(key === "ws"){ qbiMeta = null; qbiStatusInfo = null; } }
+    catch(e){ stShowErr(e.message); }
+    await stLoad(); loadDailyBank().then(renderChooserBankBalances);
+  }
+  async function stPull(key){
+    var btn = document.getElementById("st-pull-btn"); btn.disabled = true; btn.textContent = "Pulling…"; stBusy = true; stShowErr("");
+    var noteEl = document.getElementById("st-note");
+    try{
+      var r = await qbiCall("refresh_banks", key ? { company_key: key } : {});
+      var ok = (r.results || []).filter(function(x){ return x.ok; }), bad = (r.results || []).filter(function(x){ return !x.ok; });
+      (r.results || []).forEach(function(x){ stRowMsg[x.company_key] = x.ok ? { text: "Pulled " + x.accounts + " bank account" + (x.accounts === 1 ? "" : "s") + "." } : { bad: true, text: x.error }; });
+      stNote("Pulled bank balances for " + ok.length + " compan" + (ok.length === 1 ? "y" : "ies") + (bad.length ? "; " + bad.length + " failed (see below)." : "."), bad.length ? "bad" : "good");
+      noteEl.setAttribute("data-keep", "1");
+      loadDailyBank().then(renderChooserBankBalances);
+    }catch(e){ stShowErr(e.message); }
+    btn.textContent = "Pull bank balances now"; btn.disabled = false; stBusy = false;
+    await stLoad();
+  }
+  function stInit(){
+    if(!isAdmin()) return;
+    if(!stInited){
+      stInited = true;
+      document.querySelector("#st-table tbody").addEventListener("click", function(e){
+        var b = e.target.closest && e.target.closest("button[data-act]"); if(!b) return;
+        var act = b.getAttribute("data-act"), key = b.getAttribute("data-key");
+        if(act === "connect") stConnect(key, b); else if(act === "test") stTest(key, b); else if(act === "disconnect") stDisconnect(key, b);
+      });
+      document.getElementById("st-pull-btn").addEventListener("click", function(){ stPull(null); });
+    }
+    document.getElementById("st-note").removeAttribute("data-keep");
+    var ret = (QBO_RET && QBO_RET.to === "settings") ? QBO_RET : null;
+    if(ret){
+      QBO_RET = null;
+      try{ history.replaceState(null, "", location.pathname); }catch(e){}
+    }
+    stLoad().then(function(){
+      if(!ret) return;
+      var co = stData && stData.companies.filter(function(c){ return c.company_key === ret.key; })[0];
+      var nm = co ? co.display_name : "the company";
+      if(ret.res === "connected"){
+        var q = co && co.qbo_company_name ? " QuickBooks says it is “" + co.qbo_company_name + "”." : "";
+        stNote("Connected " + nm + "." + q + " Pulling its bank balances…", "good");
+        document.getElementById("st-note").setAttribute("data-keep", "1");
+        stPull(ret.key);
+      }else if(ret.res === "cancelled"){ stShowErr("The connection for " + nm + " was cancelled."); }
+      else{ stShowErr(ret.msg || "The QuickBooks connection didn’t finish."); }
+    });
   }
 
   function initUploadSection(){
