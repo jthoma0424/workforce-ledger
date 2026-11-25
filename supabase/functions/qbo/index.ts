@@ -267,7 +267,7 @@ async function meta(key: string) {
   ]);
   return {
     customers: customers.map((c) => c.FullyQualifiedName),
-    classes: classes.map((c) => c.FullyQualifiedName),
+    classes: classes.map((c) => c.FullyQualifiedName as string).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })),
     terms: terms.map((t) => t.Name),
     items: items.map((i) => i.FullyQualifiedName || i.Name),
     locations: depts.map((d) => d.Name),
@@ -454,6 +454,103 @@ async function sendInvoices(key: string, invoices: Inv[], dryRun: boolean, userI
   return { env: ENV, dry_run: dryRun, results };
 }
 
+// ---------- bills (Key Risk workers' comp, Frontier commission): vendor bills with one line per location ----------
+type BillLine = { account: string; description?: string; amount: number; class?: string };
+type Bill = { doc_number: string; vendor: string; txn_date: string; due_date?: string; terms?: string; memo?: string; lines: BillLine[] };
+
+async function sendBills(key: string, bills: Bill[], dryRun: boolean, userId: string) {
+  if (!Array.isArray(bills) || !bills.length) throw new HttpError(400, "No bills to send.");
+  if (bills.length > 20) throw new HttpError(400, "Send 20 bills or fewer at a time.");
+  const conn = await getConnection(key);
+  const cache = new Map<string, string | null>();
+  async function lookup(entity: string, field: string, value: string) {
+    const k = entity + "|" + field + "|" + value;
+    if (cache.has(k)) return cache.get(k)!;
+    const r = await query(key, `select Id from ${entity} where ${field} = '${esc(value)}'`);
+    const id = r[entity]?.[0]?.Id ?? null;
+    cache.set(k, id);
+    return id as string | null;
+  }
+  // "61200 Direct Staffing Labor:Worker Compensation" -> account number 61200, else match the name
+  async function account(label: string) {
+    const m = String(label).trim().match(/^(\d{3,8})\s+(.*)$/);
+    if (m) {
+      const byNum = await lookup("Account", "AcctNum", m[1]);
+      if (byNum) return byNum;
+      const byName = await lookup("Account", "FullyQualifiedName", m[2]);
+      if (byName) return byName;
+      return null;
+    }
+    return (await lookup("Account", "FullyQualifiedName", label)) ?? (await lookup("Account", "Name", label));
+  }
+  const results: any[] = [];
+  const seen = new Set<string>();
+  for (const b of bills) {
+    const r: any = { doc_number: b.doc_number, vendor: b.vendor, ok: false };
+    try {
+      const doc = String(b.doc_number ?? "").trim();
+      if (!doc) throw new Error("Bill number is blank.");
+      if (seen.has(doc)) throw new Error("Bill number " + doc + " appears twice in this batch.");
+      seen.add(doc);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(b.txn_date ?? "")) throw new Error("Bill date is missing.");
+      if (!b.vendor) throw new Error("Vendor is blank.");
+      if (!Array.isArray(b.lines) || !b.lines.length) throw new Error("The bill has no lines.");
+
+      const { data: logged } = await admin.from("qbo_invoice_log").select("qbo_id,created_at").eq("realm_id", conn.realm_id).eq("doc_number", doc).maybeSingle();
+      if (logged) { r.status = "exists"; throw new Error("Bill " + doc + " was already sent from this site on " + String(logged.created_at).slice(0, 10) + "."); }
+      const existing = await query(key, `select Id from Bill where DocNumber = '${esc(doc)}'`);
+      if (existing.Bill?.length) { r.status = "exists"; throw new Error("Bill " + doc + " is already in QuickBooks."); }
+
+      const vendorId = await lookup("Vendor", "DisplayName", b.vendor);
+      if (!vendorId) throw new Error(`QuickBooks has no vendor named "${b.vendor}".`);
+      const termId = b.terms ? await lookup("Term", "Name", b.terms) : null;
+      if (b.terms && !termId) throw new Error(`QuickBooks has no terms named "${b.terms}".`);
+
+      const lines: any[] = [];
+      let total = 0;
+      for (const [i, l] of b.lines.entries()) {
+        const amt = Math.round(Number(l.amount) * 100) / 100;
+        if (!isFinite(amt) || amt === 0) throw new Error(`Line ${i + 1}: amount can't be zero.`);
+        const acct = await account(l.account);
+        if (!acct) throw new Error(`QuickBooks has no account "${l.account}".`);
+        let classId: string | null = null;
+        if (l.class) {
+          classId = await lookup("Class", "FullyQualifiedName", l.class);
+          if (!classId) throw new Error(`QuickBooks has no class "${l.class}" (line: ${l.description ?? i + 1}).`);
+        }
+        total += amt;
+        lines.push({
+          DetailType: "AccountBasedExpenseLineDetail", Amount: amt, Description: l.description || "",
+          AccountBasedExpenseLineDetail: { AccountRef: { value: acct }, BillableStatus: "NotBillable", ...(classId ? { ClassRef: { value: classId } } : {}) },
+        });
+      }
+      total = Math.round(total * 100) / 100;
+      if (!(total > 0)) throw new Error("The bill total must be greater than zero.");
+      const payload: any = { DocNumber: doc, TxnDate: b.txn_date, VendorRef: { value: vendorId }, Line: lines };
+      if (termId) payload.SalesTermRef = { value: termId };
+      if (b.due_date && /^\d{4}-\d{2}-\d{2}$/.test(b.due_date)) payload.DueDate = b.due_date;
+      if (b.memo) payload.PrivateNote = b.memo;
+
+      r.total = total; r.line_count = lines.length;
+      if (dryRun) { r.ok = true; r.status = "ready"; }
+      else {
+        const created = await qbo(key, "bill", { method: "POST", body: JSON.stringify(payload) });
+        const made = created.Bill;
+        r.ok = true; r.status = "created"; r.qbo_id = made?.Id; r.total = made?.TotalAmt ?? total;
+        const { error } = await admin.from("qbo_invoice_log").insert({
+          realm_id: conn.realm_id, env: ENV, doc_number: doc, qbo_id: made?.Id, customer: b.vendor + " (bill)", amount: total,
+          txn_date: b.txn_date, source_file: "vendor bill", created_by: userId,
+        });
+        if (error) r.warning = "Created in QuickBooks, but the site's log didn't save: " + error.message;
+      }
+    } catch (e) {
+      r.ok = false; r.error = (e as Error).message; r.status = r.status ?? "error";
+    }
+    results.push(r);
+  }
+  return { env: ENV, dry_run: dryRun, results };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     // answer the browser's pre-check, allowing whatever headers it says it will send
@@ -479,6 +576,8 @@ Deno.serve(async (req) => {
       case "meta": return json(await meta(key));
       case "invoice_list": return json(await invoiceList(key, body.from, body.to));
       case "balance_sheet": return json(await balanceSheet(key, body.as_of));
+      case "validate_bills": return json(await sendBills(key, body.bills, true, who.user.id));
+      case "send_bills": return json(await sendBills(key, body.bills, false, who.user.id));
       case "validate": return json(await sendInvoices(key, body.invoices, true, who.user.id));
       case "send": return json(await sendInvoices(key, body.invoices, false, who.user.id));
       default: return json({ error: "Unknown action." }, 400);
