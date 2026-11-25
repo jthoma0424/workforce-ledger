@@ -1,1 +1,1 @@
-Redeploy trigger 2026-11-25 (GitHub Pages deploy returned a 500; this commit starts a fresh build).
+Redeploy trigger 2 2026-11-25T16:51Z (previous GitHub Pages deploy failed during a GitHub outage).
